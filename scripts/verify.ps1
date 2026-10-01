@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+$env:PYTHONUTF8 = "1"
 
 $uvCommand = Get-Command uv -ErrorAction SilentlyContinue
 if ($uvCommand) {
