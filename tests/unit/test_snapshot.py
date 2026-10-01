@@ -34,7 +34,7 @@ def _tables() -> dict[str, pd.DataFrame]:
 
 def _expected(tables: dict[str, pd.DataFrame], key: str) -> pd.DataFrame:
     frame = tables[key].copy()
-    for column in ("date", "month_end"):
+    for column in ("date", "month_end", "update_date"):
         if column in frame:
             frame[column] = pd.to_datetime(frame[column]).astype("datetime64[ns]")
     for column in ("tradestatus", "isST"):
@@ -131,3 +131,40 @@ def test_year_range_reads_only_requested_partitions(tmp_path: Path, monkeypatch:
         "daily/year=2012.parquet",
     }
     assert set(loaded["daily"]["date"].dt.year) == {2010, 2011, 2012}
+
+
+def test_universe_monthly_round_trip_keeps_string_index_and_normalizes_update_date(
+    tmp_path: Path,
+) -> None:
+    tables = _tables()
+    universe = pd.DataFrame(
+        {
+            "month_end": ["2020-01-31", "2020-02-28"],
+            "code": ["sh.600001", "sh.600002"],
+            "index": ["hs300", "zz500"],
+            "update_date": ["2020-02-01", "2020-03-01"],
+        }
+    )
+    tables["universe_monthly"] = universe
+
+    snapshot_id = write_snapshot(
+        tables, tmp_path, asof="2020-03-01", sources={}, code_version="test"
+    )
+    loaded = load_snapshot(tmp_path, snapshot_id, tables=("universe_monthly",))
+
+    expected = universe.copy()
+    expected["month_end"] = pd.to_datetime(expected["month_end"]).astype("datetime64[ns]")
+    expected["update_date"] = pd.to_datetime(expected["update_date"]).astype("datetime64[ns]")
+    expected["code"] = expected["code"].astype(str)
+    expected = expected.sort_values(list(expected.columns), kind="mergesort").reset_index(drop=True)
+    pd.testing.assert_frame_equal(loaded["universe_monthly"], expected)
+    assert loaded["universe_monthly"]["index"].tolist() == ["hs300", "zz500"]
+
+
+def test_load_missing_table_raises_key_error_with_table_name(tmp_path: Path) -> None:
+    snapshot_id = write_snapshot(
+        _tables(), tmp_path, asof="2012-12-31", sources={}, code_version="test"
+    )
+
+    with pytest.raises(KeyError, match="universe_monthly"):
+        load_snapshot(tmp_path, snapshot_id, tables=("universe_monthly",))

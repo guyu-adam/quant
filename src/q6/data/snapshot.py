@@ -1,4 +1,8 @@
-"""内容寻址的数据快照写入、加载与完整性校验。"""
+"""内容寻址的数据快照写入、加载与完整性校验。
+
+快照 ID 由 Parquet 文件字节决定。升级 pyarrow 或 pandas 可能改变这些字节，
+即使数据本身没有变化也会改变快照 ID；因此可复现 ID 的前提是由 uv.lock 锁定依赖版本。
+"""
 
 from __future__ import annotations
 
@@ -32,7 +36,7 @@ _INT64_COLUMNS = {"volume"}
 def _normalize(frame: pd.DataFrame, table: str) -> pd.DataFrame:
     result = frame.copy()
     for name in result.columns:
-        if name == "date" or name == "month_end":
+        if name in {"date", "month_end", "update_date"}:
             result[name] = pd.to_datetime(result[name]).astype("datetime64[ns]")
         elif name == "code":
             result[name] = result[name].astype(str)
@@ -45,7 +49,7 @@ def _normalize(frame: pd.DataFrame, table: str) -> pd.DataFrame:
         elif name == "listed_days":
             result[name] = pd.to_numeric(result[name]).astype("int32")
         elif name == "index":
-            result[name] = pd.to_numeric(result[name]).astype("int64")
+            result[name] = result[name].astype(str)
         elif pd.api.types.is_numeric_dtype(result[name].dtype):
             result[name] = pd.to_numeric(result[name]).astype("float64")
     if table == "daily":
@@ -227,6 +231,7 @@ def load_snapshot(
         else:
             rel = _TABLE_PATHS[name]
             entry = next((item for item in files if item["path"] == rel), None)
-            if entry is not None:
-                result[name] = pq.read_table(_validate_file(directory, entry)).to_pandas()
+            if entry is None:
+                raise KeyError(f"快照清单缺少请求的表 {name!r}（文件 {rel}）")
+            result[name] = pq.read_table(_validate_file(directory, entry)).to_pandas()
     return result
