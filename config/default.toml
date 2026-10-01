@@ -1,0 +1,40 @@
+seed = 42 # 随机数种子
+
+[data]
+# snapshot_id = "snapshot-identifier" # 快照标识；省略表示使用默认快照
+start = 2005-01-04 # 回测开始日期，含当日
+end = 2024-06-28 # 回测结束日期，含当日
+
+[universe]
+index = "csi800" # 股票池指数，可选 csi800、hs300、zz500
+min_listed_days = 60 # 新股上市满多少个自然日后纳入
+exclude_st = true # 是否排除 ST 股票
+
+[costs]
+commission_rate = 0.00025 # 佣金费率，无量纲比例
+commission_min = 5.0 # 单笔最低佣金，元
+slippage_bp = 5.0 # 滑点，基点
+impact_coef = 0.1 # 市场冲击系数，无量纲
+cost_multiplier = 1.0 # 成本统一倍率，无量纲
+
+[risk]
+max_weight = 0.10 # 单只股票最大组合权重，比例
+max_industry_weight = 0.30 # 单个行业最大组合权重，比例
+daily_loss_limit = 0.03 # 单日亏损限制，比例
+max_drawdown_halt = 0.20 # 最大回撤停机阈值，比例
+cooldown_days = 5 # 触发风控后的冷却交易日数，交易日
+
+[engine]
+initial_cash = 1000000 # 初始资金，元
+exec_style = "open_auction" # 执行方式：开盘集合竞价、VWAP 或收盘集合竞价
+max_participation = 0.1 # 最大成交参与率，比例
+
+[split]
+lockbox_start = 2024-07-01 # 锁箱期起始日期
+train_years = 3 # 训练窗口长度，年
+test_months = 6 # 测试窗口长度，月
+step_months = 6 # 滚动步长，月
+embargo_days = 5 # 训练与测试间隔，交易日
+
+[strategies]
+# 策略专属参数以策略名称为键配置
