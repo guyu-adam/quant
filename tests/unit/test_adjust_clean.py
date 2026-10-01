@@ -5,7 +5,11 @@ import pandas as pd
 import pytest
 
 from q6.data.adjust import (
-    add_back_adjusted, back_factor, compare_vendor_factor, event_ratio, forward_adjusted,
+    add_back_adjusted,
+    back_factor,
+    compare_vendor_factor,
+    event_ratio,
+    forward_adjusted,
 )
 from q6.data.clean import clean_daily
 from q6.lint.truncation_test import assert_no_lookahead, check_lookahead
@@ -63,7 +67,8 @@ def test_rounding_noise_not_accumulated():
 
 
 def test_quarantine_flags_not_fixes():
-    df = _raw("A", pd.bdate_range("2020-01-01", periods=10), close=np.full(10, 10.0), preclose=np.full(10, 10.0))
+    ten = np.full(10, 10.0)
+    df = _raw("A", pd.bdate_range("2020-01-01", periods=10), close=ten, preclose=ten)
     df.loc[3, "high"] = 9.0  # high < low
     df.loc[7:, ["open", "close", "high", "low"]] = [15.0, 15.0, 15.15, 14.85]  # 第 7 行无复牌无上市的 +50%
     df.loc[8:, "preclose"] = 15.0
@@ -84,7 +89,8 @@ def test_new_stock_and_st_flags():
     d = clean_daily(df, new_stock_days=60).data
     assert d["is_new"].sum() == 60 and d["is_st"].iloc[-1]
     # 上市前 5 日豁免涨跌幅检查（注册制新股前 5 日不设限）
-    df2 = _raw("B", pd.bdate_range("2021-01-01", periods=3), close=[30.0, 40.0, 41.0], preclose=[10.0, 30.0, 40.0])
+    df2 = _raw("B", pd.bdate_range("2021-01-01", periods=3),
+               close=[30.0, 40.0, 41.0], preclose=[10.0, 30.0, 40.0])
     assert clean_daily(df2).quarantine.empty
 
 

@@ -5,7 +5,14 @@ from datetime import datetime
 import pytest
 
 from q6.core.types import (
-    AccountSnapshot, Bar, Fill, Order, OrderType, Position, Side, validate_target_weights,
+    AccountSnapshot,
+    Bar,
+    Fill,
+    Order,
+    OrderType,
+    Position,
+    Side,
+    validate_target_weights,
 )
 
 TS = datetime(2020, 1, 2, 15)

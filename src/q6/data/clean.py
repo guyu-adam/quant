@@ -23,7 +23,8 @@ import pandas as pd
 
 from q6.data.adjust import add_back_adjusted, adjusted_return
 
-REQUIRED = ("date", "code", "open", "high", "low", "close", "preclose", "volume", "amount", "tradestatus", "isST")
+REQUIRED = ("date", "code", "open", "high", "low", "close", "preclose",
+            "volume", "amount", "tradestatus", "isST")
 
 # 单日涨跌幅超过这个值且不是上市初期 / 复牌首日的 bar 视为可疑。A 股最宽涨跌幅为 ±30%（北交所），
 # 主板新股首日 44%、注册制新股前 5 日不设限，故对上市初期和复牌日豁免。

@@ -7,7 +7,6 @@ LAG 标注每个样例输出的语义：0 = 信号（t+1 才成交）；1 = 第 
 
 import pandas as pd
 
-
 # ---------------- 带未来函数 ----------------
 
 def leaky_shift_negative(d):

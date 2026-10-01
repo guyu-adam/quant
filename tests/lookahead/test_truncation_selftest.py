@@ -79,7 +79,8 @@ def _pit_stateful_ewma():
 
     def decide(v: PITView):
         x = v.latest("close")
-        state["m"] = x if state["m"] is None else np.where(np.isnan(x), state["m"], 0.9 * state["m"] + 0.1 * x)
+        m = state["m"]
+        state["m"] = x if m is None else np.where(np.isnan(x), m, 0.9 * m + 0.1 * x)
         return state["m"].copy()
     return decide
 

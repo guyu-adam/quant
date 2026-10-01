@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from q6.core.pit import Panel, PITView, iter_views
+from q6.core.pit import Panel, iter_views
 
 
 def _panel(T, N, seed, lag=0):
@@ -32,7 +32,8 @@ def test_never_returns_future(T, N, seed, lag, lookback, data):
             assert d.max() == p.date_at(t - k)  # 恰好到 t-lag，不多不少
         else:
             assert t - k < 0
-        np.testing.assert_array_equal(w, p._fields[name][max(0, t + 1 - k - (lookback or 10**9)): max(0, t + 1 - k)])
+        end = max(0, t + 1 - k)
+        np.testing.assert_array_equal(w, p._fields[name][max(0, end - (lookback or 10**9)): end])
         lt = v.latest(name)
         if t - k >= 0:
             np.testing.assert_array_equal(lt, p._fields[name][t - k])

@@ -58,7 +58,8 @@ class LookaheadReport:
         return not self.failures and not self.nondeterministic
 
     def __str__(self) -> str:
-        head = f"[{'PASS' if self.passed else 'FAIL'}] {self.name}: rows={self.n_rows} lag={self.lag} cuts={self.cuts}"
+        tag = "PASS" if self.passed else "FAIL"
+        head = f"[{tag}] {self.name}: rows={self.n_rows} lag={self.lag} cuts={self.cuts}"
         if self.nondeterministic:
             return head + "\n  函数输出不确定（同一输入两次运行结果不同），无法做截断测试"
         lines = [head] + [f"  {f.mode} cut={f.cut} out[{f.key}] 首个不一致行={f.first_bad_row}: {f.detail}"
@@ -220,10 +221,10 @@ def check_lookahead(
 
     for cut in cuts:
         crng = np.random.default_rng([seed, cut])
-        base = _map(data, lambda x: _nan_probe_leaf(x, cut, crng)) if nan_probe else data
+        base = _map(data, lambda x, c=cut, g=crng: _nan_probe_leaf(x, c, g)) if nan_probe else data
         ref = _out_leaves(fn(base), T, "基线") if nan_probe else a1
         if "truncate" in modes:
-            trunc = fn(_map(base, lambda x: _head(x, cut + 1)))
+            trunc = fn(_map(base, lambda x, c=cut: _head(x, c + 1)))
             got = _out_leaves(trunc, cut + 1, f"截断@{cut}")
             for k, v in ref.items():
                 d = _first_diff(v, got.get(k, np.empty(0)), cut + 1, atol)
@@ -231,7 +232,7 @@ def check_lookahead(
                     rep.failures.append(Failure("truncate", cut, k, d[0], d[1]))
         if "perturb" in modes:
             prng = np.random.default_rng([seed, cut, 1])
-            pert = fn(_map(base, lambda x: _perturb_leaf(x, cut, prng)))
+            pert = fn(_map(base, lambda x, c=cut, g=prng: _perturb_leaf(x, c, g)))
             got = _out_leaves(pert, T, f"扰动@{cut}")
             for k, v in ref.items():
                 d = _first_diff(v, got.get(k, np.empty(0)), cut + 1 + lag, atol)
@@ -249,8 +250,12 @@ def assert_no_lookahead(fn: Callable[[Data], Data], data: Data, **kw) -> Lookahe
 
 # ---------------------------------------------------------------- PITView 策略适配
 
-def pit_runner(make_decider: Callable[[], Callable[[PITView], Any]], *, start: int = 0,
-               field_lag: Mapping[str, int] | None = None) -> Callable[[Mapping[str, pd.DataFrame]], pd.DataFrame]:
+def pit_runner(
+    make_decider: Callable[[], Callable[[PITView], Any]],
+    *,
+    start: int = 0,
+    field_lag: Mapping[str, int] | None = None,
+) -> Callable[[Mapping[str, pd.DataFrame]], pd.DataFrame]:
     """把"逐 bar 看 PITView 做决定"的策略包装成截断测试可用的函数。
 
     make_decider 每次调用返回一个**全新**的决策函数（有状态策略必须每次重建，否则两次运行互相污染）。

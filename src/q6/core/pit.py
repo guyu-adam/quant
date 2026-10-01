@@ -150,7 +150,8 @@ class PITView:
             raise ValueError("lookback 必须为正整数")
         return slice(max(0, end - int(lookback)), end)
 
-    def window(self, name: str, lookback: int | None = None, symbols: Iterable[str] | None = None) -> np.ndarray:
+    def window(self, name: str, lookback: int | None = None,
+               symbols: Iterable[str] | None = None) -> np.ndarray:
         """最近 lookback 行（不足则有多少给多少），形状 (L, N) 的拷贝。lookback=None 表示全部历史。"""
         rows = self._rows(name, lookback)
         arr = self._panel._fields[name]
