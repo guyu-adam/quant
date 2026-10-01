@@ -1,0 +1,1511 @@
+{
+  "index": "hs300",
+  "date": "2024-02-29",
+  "columns": [
+    "updateDate",
+    "code",
+    "code_name"
+  ],
+  "rows": [
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600000",
+      "code_name": "浦发银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600009",
+      "code_name": "上海机场"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600010",
+      "code_name": "包钢股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600011",
+      "code_name": "华能国际"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600015",
+      "code_name": "华夏银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600016",
+      "code_name": "民生银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600018",
+      "code_name": "上港集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600019",
+      "code_name": "宝钢股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600023",
+      "code_name": "浙能电力"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600025",
+      "code_name": "华能水电"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600028",
+      "code_name": "中国石化"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600029",
+      "code_name": "南方航空"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600030",
+      "code_name": "中信证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600031",
+      "code_name": "三一重工"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600036",
+      "code_name": "招商银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600039",
+      "code_name": "四川路桥"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600048",
+      "code_name": "保利发展"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600050",
+      "code_name": "中国联通"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600061",
+      "code_name": "国投资本"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600085",
+      "code_name": "同仁堂"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600089",
+      "code_name": "特变电工"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600104",
+      "code_name": "上汽集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600111",
+      "code_name": "北方稀土"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600115",
+      "code_name": "中国东航"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600132",
+      "code_name": "重庆啤酒"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600150",
+      "code_name": "中国船舶"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600176",
+      "code_name": "中国巨石"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600183",
+      "code_name": "生益科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600188",
+      "code_name": "兖矿能源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600196",
+      "code_name": "复星医药"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600219",
+      "code_name": "南山铝业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600233",
+      "code_name": "圆通速递"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600276",
+      "code_name": "恒瑞医药"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600309",
+      "code_name": "万华化学"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600332",
+      "code_name": "白云山"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600346",
+      "code_name": "恒力石化"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600362",
+      "code_name": "江西铜业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600372",
+      "code_name": "中航机载"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600406",
+      "code_name": "国电南瑞"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600426",
+      "code_name": "华鲁恒升"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600436",
+      "code_name": "片仔癀"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600438",
+      "code_name": "通威股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600460",
+      "code_name": "士兰微"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600489",
+      "code_name": "中金黄金"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600515",
+      "code_name": "海南机场"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600519",
+      "code_name": "贵州茅台"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600547",
+      "code_name": "山东黄金"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600570",
+      "code_name": "恒生电子"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600584",
+      "code_name": "长电科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600585",
+      "code_name": "海螺水泥"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600588",
+      "code_name": "用友网络"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600600",
+      "code_name": "青岛啤酒"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600606",
+      "code_name": "绿地控股"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600660",
+      "code_name": "福耀玻璃"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600674",
+      "code_name": "川投能源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600690",
+      "code_name": "海尔智家"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600732",
+      "code_name": "爱旭股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600741",
+      "code_name": "华域汽车"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600745",
+      "code_name": "闻泰科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600754",
+      "code_name": "锦江酒店"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600760",
+      "code_name": "中航沈飞"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600795",
+      "code_name": "国电电力"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600803",
+      "code_name": "新奥股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600809",
+      "code_name": "山西汾酒"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600837",
+      "code_name": "海通证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600845",
+      "code_name": "宝信软件"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600875",
+      "code_name": "东方电气"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600886",
+      "code_name": "国投电力"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600887",
+      "code_name": "伊利股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600893",
+      "code_name": "航发动力"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600900",
+      "code_name": "长江电力"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600905",
+      "code_name": "三峡能源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600918",
+      "code_name": "中泰证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600919",
+      "code_name": "江苏银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600926",
+      "code_name": "杭州银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600938",
+      "code_name": "中国海油"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600941",
+      "code_name": "中国移动"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600958",
+      "code_name": "东方证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600989",
+      "code_name": "宝丰能源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.600999",
+      "code_name": "招商证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601006",
+      "code_name": "大秦铁路"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601009",
+      "code_name": "南京银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601012",
+      "code_name": "隆基绿能"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601021",
+      "code_name": "春秋航空"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601059",
+      "code_name": "信达证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601066",
+      "code_name": "中信建投"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601088",
+      "code_name": "中国神华"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601100",
+      "code_name": "恒立液压"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601111",
+      "code_name": "中国国航"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601117",
+      "code_name": "中国化学"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601138",
+      "code_name": "工业富联"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601155",
+      "code_name": "新城控股"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601166",
+      "code_name": "兴业银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601169",
+      "code_name": "北京银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601186",
+      "code_name": "中国铁建"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601211",
+      "code_name": "国泰君安"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601225",
+      "code_name": "陕西煤业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601229",
+      "code_name": "上海银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601236",
+      "code_name": "红塔证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601238",
+      "code_name": "广汽集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601288",
+      "code_name": "农业银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601318",
+      "code_name": "中国平安"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601319",
+      "code_name": "中国人保"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601328",
+      "code_name": "交通银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601336",
+      "code_name": "新华保险"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601360",
+      "code_name": "三六零"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601377",
+      "code_name": "兴业证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601390",
+      "code_name": "中国中铁"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601398",
+      "code_name": "工商银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601600",
+      "code_name": "中国铝业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601601",
+      "code_name": "中国太保"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601607",
+      "code_name": "上海医药"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601615",
+      "code_name": "明阳智能"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601618",
+      "code_name": "中国中冶"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601628",
+      "code_name": "中国人寿"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601633",
+      "code_name": "长城汽车"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601658",
+      "code_name": "邮储银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601668",
+      "code_name": "中国建筑"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601669",
+      "code_name": "中国电建"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601688",
+      "code_name": "华泰证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601689",
+      "code_name": "拓普集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601698",
+      "code_name": "中国卫通"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601699",
+      "code_name": "潞安环能"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601728",
+      "code_name": "中国电信"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601766",
+      "code_name": "中国中车"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601788",
+      "code_name": "光大证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601799",
+      "code_name": "星宇股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601800",
+      "code_name": "中国交建"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601808",
+      "code_name": "中海油服"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601816",
+      "code_name": "京沪高铁"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601818",
+      "code_name": "光大银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601838",
+      "code_name": "成都银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601857",
+      "code_name": "中国石油"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601865",
+      "code_name": "福莱特"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601868",
+      "code_name": "中国能建"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601872",
+      "code_name": "招商轮船"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601877",
+      "code_name": "正泰电器"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601878",
+      "code_name": "浙商证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601881",
+      "code_name": "中国银河"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601888",
+      "code_name": "中国中免"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601898",
+      "code_name": "中煤能源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601899",
+      "code_name": "紫金矿业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601901",
+      "code_name": "方正证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601916",
+      "code_name": "浙商银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601919",
+      "code_name": "中远海控"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601939",
+      "code_name": "建设银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601985",
+      "code_name": "中国核电"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601988",
+      "code_name": "中国银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601989",
+      "code_name": "中国重工"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601995",
+      "code_name": "中金公司"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.601998",
+      "code_name": "中信银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603019",
+      "code_name": "中科曙光"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603195",
+      "code_name": "公牛集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603259",
+      "code_name": "药明康德"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603260",
+      "code_name": "合盛硅业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603288",
+      "code_name": "海天味业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603290",
+      "code_name": "斯达半导"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603369",
+      "code_name": "今世缘"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603392",
+      "code_name": "万泰生物"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603486",
+      "code_name": "科沃斯"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603501",
+      "code_name": "韦尔股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603659",
+      "code_name": "璞泰来"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603799",
+      "code_name": "华友钴业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603806",
+      "code_name": "福斯特"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603833",
+      "code_name": "欧派家居"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603899",
+      "code_name": "晨光股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603986",
+      "code_name": "兆易创新"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.603993",
+      "code_name": "洛阳钼业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.605117",
+      "code_name": "德业股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.605499",
+      "code_name": "东鹏饮料"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688008",
+      "code_name": "澜起科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688012",
+      "code_name": "中微公司"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688036",
+      "code_name": "传音控股"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688041",
+      "code_name": "海光信息"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688065",
+      "code_name": "凯赛生物"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688111",
+      "code_name": "金山办公"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688126",
+      "code_name": "沪硅产业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688187",
+      "code_name": "时代电气"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688223",
+      "code_name": "晶科能源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688256",
+      "code_name": "寒武纪"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688271",
+      "code_name": "联影医疗"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688303",
+      "code_name": "大全能源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688363",
+      "code_name": "华熙生物"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688396",
+      "code_name": "华润微"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688561",
+      "code_name": "奇安信"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688599",
+      "code_name": "天合光能"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sh.688981",
+      "code_name": "中芯国际"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000001",
+      "code_name": "平安银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000002",
+      "code_name": "万科A"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000063",
+      "code_name": "中兴通讯"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000069",
+      "code_name": "华侨城A"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000100",
+      "code_name": "TCL科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000157",
+      "code_name": "中联重科"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000166",
+      "code_name": "申万宏源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000301",
+      "code_name": "东方盛虹"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000333",
+      "code_name": "美的集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000338",
+      "code_name": "潍柴动力"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000408",
+      "code_name": "藏格矿业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000425",
+      "code_name": "徐工机械"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000538",
+      "code_name": "云南白药"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000568",
+      "code_name": "泸州老窖"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000596",
+      "code_name": "古井贡酒"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000617",
+      "code_name": "中油资本"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000625",
+      "code_name": "长安汽车"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000651",
+      "code_name": "格力电器"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000661",
+      "code_name": "长春高新"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000708",
+      "code_name": "中信特钢"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000725",
+      "code_name": "京东方A"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000733",
+      "code_name": "振华科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000768",
+      "code_name": "中航西飞"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000776",
+      "code_name": "广发证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000786",
+      "code_name": "北新建材"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000792",
+      "code_name": "盐湖股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000800",
+      "code_name": "一汽解放"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000858",
+      "code_name": "五粮液"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000876",
+      "code_name": "新希望"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000877",
+      "code_name": "天山股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000895",
+      "code_name": "双汇发展"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000938",
+      "code_name": "紫光股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000963",
+      "code_name": "华东医药"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000977",
+      "code_name": "浪潮信息"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000983",
+      "code_name": "山西焦煤"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.000999",
+      "code_name": "华润三九"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.001289",
+      "code_name": "龙源电力"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.001979",
+      "code_name": "招商蛇口"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002001",
+      "code_name": "新和成"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002007",
+      "code_name": "华兰生物"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002027",
+      "code_name": "分众传媒"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002049",
+      "code_name": "紫光国微"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002050",
+      "code_name": "三花智控"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002074",
+      "code_name": "国轩高科"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002129",
+      "code_name": "TCL中环"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002142",
+      "code_name": "宁波银行"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002179",
+      "code_name": "中航光电"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002180",
+      "code_name": "纳思达"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002202",
+      "code_name": "金风科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002230",
+      "code_name": "科大讯飞"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002236",
+      "code_name": "大华股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002241",
+      "code_name": "歌尔股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002252",
+      "code_name": "上海莱士"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002271",
+      "code_name": "东方雨虹"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002304",
+      "code_name": "洋河股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002311",
+      "code_name": "海大集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002352",
+      "code_name": "顺丰控股"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002371",
+      "code_name": "北方华创"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002410",
+      "code_name": "广联达"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002415",
+      "code_name": "海康威视"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002459",
+      "code_name": "晶澳科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002460",
+      "code_name": "赣锋锂业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002466",
+      "code_name": "天齐锂业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002475",
+      "code_name": "立讯精密"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002493",
+      "code_name": "荣盛石化"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002555",
+      "code_name": "三七互娱"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002594",
+      "code_name": "比亚迪"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002601",
+      "code_name": "龙佰集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002603",
+      "code_name": "以岭药业"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002648",
+      "code_name": "卫星化学"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002709",
+      "code_name": "天赐材料"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002714",
+      "code_name": "牧原股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002736",
+      "code_name": "国信证券"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002812",
+      "code_name": "恩捷股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002821",
+      "code_name": "凯莱英"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002841",
+      "code_name": "视源股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002916",
+      "code_name": "深南电路"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002920",
+      "code_name": "德赛西威"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.002938",
+      "code_name": "鹏鼎控股"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.003816",
+      "code_name": "中国广核"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300014",
+      "code_name": "亿纬锂能"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300015",
+      "code_name": "爱尔眼科"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300033",
+      "code_name": "同花顺"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300059",
+      "code_name": "东方财富"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300122",
+      "code_name": "智飞生物"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300124",
+      "code_name": "汇川技术"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300142",
+      "code_name": "沃森生物"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300223",
+      "code_name": "北京君正"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300274",
+      "code_name": "阳光电源"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300308",
+      "code_name": "中际旭创"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300316",
+      "code_name": "晶盛机电"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300347",
+      "code_name": "泰格医药"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300408",
+      "code_name": "三环集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300413",
+      "code_name": "芒果超媒"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300433",
+      "code_name": "蓝思科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300450",
+      "code_name": "先导智能"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300454",
+      "code_name": "深信服"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300496",
+      "code_name": "中科创达"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300498",
+      "code_name": "温氏股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300628",
+      "code_name": "亿联网络"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300661",
+      "code_name": "圣邦股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300750",
+      "code_name": "宁德时代"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300751",
+      "code_name": "迈为股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300759",
+      "code_name": "康龙化成"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300760",
+      "code_name": "迈瑞医疗"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300763",
+      "code_name": "锦浪科技"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300782",
+      "code_name": "卓胜微"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300896",
+      "code_name": "爱美客"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300919",
+      "code_name": "中伟股份"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300957",
+      "code_name": "贝泰妮"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300979",
+      "code_name": "华利集团"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.300999",
+      "code_name": "金龙鱼"
+    },
+    {
+      "updateDate": "2024-02-26",
+      "code": "sz.301269",
+      "code_name": "华大九天"
+    }
+  ]
+}
