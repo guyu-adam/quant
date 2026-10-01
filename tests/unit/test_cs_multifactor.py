@@ -37,7 +37,7 @@ class Feed:
     def __init__(self, frames):
         self.panel = Panel.from_frames(frames)
 
-    def segments(self, start, end, warmup):
+    def segments(self, start, end, warmup, keep=None):
         yield Segment(self.panel, 0, np.ones((len(DAYS), len(SYMS)), dtype=bool))
 
 
