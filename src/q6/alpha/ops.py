@@ -121,7 +121,20 @@ def ts_corr(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:
 def ts_cov(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:
     """Return complete-window rolling sample covariance (ddof=1) of x and y."""
     _same_shape(x, y)
-    return x.rolling(_window(d), min_periods=_window(d)).cov(y, ddof=1)
+    d = _window(d)
+    if d == 1 or len(x) < d:
+        return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    xa = x.to_numpy(dtype=float, copy=False)
+    ya = y.to_numpy(dtype=float, copy=False)
+    out = np.full(xa.shape, np.nan)
+    step = max(1, 20_000_000 // (xa.shape[0] * d))
+    for start in range(0, xa.shape[1], step):
+        xw = np.lib.stride_tricks.sliding_window_view(xa[:, start : start + step], d, axis=0)
+        yw = np.lib.stride_tricks.sliding_window_view(ya[:, start : start + step], d, axis=0)
+        valid = ~np.isnan(xw).any(axis=-1) & ~np.isnan(yw).any(axis=-1)
+        covariance = (np.einsum("...i,...i->...", xw, yw) - xw.sum(axis=-1) * yw.sum(axis=-1) / d) / (d - 1)
+        out[d - 1 :, start : start + step] = np.where(valid, covariance, np.nan)
+    return pd.DataFrame(out, index=x.index, columns=x.columns)
 
 
 def decay_linear(x: pd.DataFrame, d: int) -> pd.DataFrame:

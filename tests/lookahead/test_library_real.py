@@ -37,6 +37,7 @@ def factor_data():
         ),
     )["daily"]
     wide = build_inputs(daily)
+    # Spread 300 real securities across the universe to stay below the RSS cap.
     indices = np.linspace(0, len(wide["close"].columns) - 1, min(300, len(wide["close"].columns)), dtype=int)
     return {key: value.iloc[:, indices] for key, value in wide.items()}
 
