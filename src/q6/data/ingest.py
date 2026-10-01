@@ -82,13 +82,14 @@ def fetch_daily_many(
                 chunks = [existing] if not existing.empty else []
                 fetched_count = 0
                 if not existing.empty:
-                    first = pd.to_datetime(existing["date"]).min().strftime("%Y-%m-%d")
+                    dates = pd.to_datetime(existing["date"])
+                    first = dates.min().strftime("%Y-%m-%d")  # lookahead: ok 抓取区间判断，非信号
                     if start < first:
                         head_end = (pd.Timestamp(first) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
                         head = to_typed(client.daily(code, start, head_end))
                         chunks.append(head)
                         fetched_count += len(head)
-                    last = pd.to_datetime(existing["date"]).max().strftime("%Y-%m-%d")
+                    last = dates.max().strftime("%Y-%m-%d")  # lookahead: ok 抓取区间判断，非信号
                     if last < end:
                         tail_start = (pd.Timestamp(last) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
                         tail = to_typed(client.daily(code, tail_start, end))
