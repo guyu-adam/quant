@@ -1,0 +1,163 @@
+
+### AKSHARE
+akshare_version=1.19.1
+
+### daily_unadjusted
+ERROR ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 540, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+http.client.RemoteDisconnected: Remote end closed connection without response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 847, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 13, in emit
+    value = fn()
+            ^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 95, in run
+    df = call()
+         ^^^^^^
+requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+### adjust_factor_search
+candidate_apis=['macro_china_passenger_load_factor', 'macro_usa_factory_orders', 'stock_zh_a_cdr_daily', 'stock_zh_a_daily', 'stock_zh_ah_daily']
+stock_zh_a_daily: rows=33 columns=['date', 'qfq_factor'] date_range=1900-01-01 00:00:00..2026-06-26 00:00:00
+      date         qfq_factor
+2026-06-26 1.0000000000000000
+2025-12-19 1.0236675985693000
+2025-06-26 1.0410970621031000
+
+### 5m_history
+ERROR ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 540, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+http.client.RemoteDisconnected: Remote end closed connection without response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 847, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 13, in emit
+    value = fn()
+            ^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 95, in run
+    df = call()
+         ^^^^^^
+requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+### constituents_csindex_000300
+signature=(symbol: str = '000300') -> pandas.DataFrame rows=300 columns=['日期', '指数代码', '指数名称', '指数英文名称', '成分券代码', '成分券名称', '成分券英文名称', '交易所', '交易所英文名称']
+        日期   指数代码  指数名称  指数英文名称  成分券代码 成分券名称                成分券英文名称     交易所                 交易所英文名称
+2026-09-30 000300 沪深300 CSI 300 000001  平安银行 Ping An Bank Co., Ltd. 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000300 沪深300 CSI 300 000002   万科A     China Vanke Co Ltd 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000300 沪深300 CSI 300 000063  中兴通讯        ZTE Corporation 深圳证券交易所 Shenzhen Stock Exchange
+
+### constituents_csindex_000905
+signature=(symbol: str = '000300') -> pandas.DataFrame rows=500 columns=['日期', '指数代码', '指数名称', '指数英文名称', '成分券代码', '成分券名称', '成分券英文名称', '交易所', '交易所英文名称']
+        日期   指数代码  指数名称  指数英文名称  成分券代码 成分券名称                             成分券英文名称     交易所                 交易所英文名称
+2026-09-30 000905 中证500 CSI 500 000009  中国宝安          China Baoan Group Co.,Ltd. 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000905 中证500 CSI 500 000021   深科技 Shenzhen Kaifa Technology Co., Ltd. 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000905 中证500 CSI 500 000027  深圳能源        Shenzhen Energy Group Co Ltd 深圳证券交易所 Shenzhen Stock Exchange
+
+### stock_list
+  0%|          | 0/18 [00:00<?, ?it/s]  6%|▌         | 1/18 [00:00<00:02,  7.44it/s] 11%|█         | 2/18 [00:00<00:02,  7.45it/s] 17%|█▋        | 3/18 [00:00<00:02,  6.38it/s] 22%|██▏       | 4/18 [00:00<00:02,  6.28it/s] 28%|██▊       | 5/18 [00:00<00:02,  5.67it/s] 33%|███▎      | 6/18 [00:00<00:01,  6.01it/s] 39%|███▉      | 7/18 [00:01<00:01,  6.08it/s] 44%|████▍     | 8/18 [00:01<00:01,  5.95it/s] 50%|█████     | 9/18 [00:01<00:01,  5.82it/s] 56%|█████▌    | 10/18 [00:01<00:01,  5.52it/s] 61%|██████    | 11/18 [00:01<00:01,  5.61it/s] 67%|██████▋   | 12/18 [00:02<00:01,  5.77it/s] 72%|███████▏  | 13/18 [00:02<00:00,  5.89it/s] 78%|███████▊  | 14/18 [00:02<00:00,  6.01it/s] 83%|████████▎ | 15/18 [00:02<00:00,  5.93it/s] 89%|████████▉ | 16/18 [00:02<00:00,  5.51it/s] 94%|█████████▍| 17/18 [00:02<00:00,  5.65it/s]100%|██████████| 18/18 [00:03<00:00,  5.46it/s]                                               rows=5572 columns=['code', 'name']
+contains_600001=False
+contains_000527=False
+  code  name
+000001  平安银行
+000002 万  科Ａ
+000006  深振业Ａ
+
+### industry_current
+ERROR ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 540, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+http.client.RemoteDisconnected: Remote end closed connection without response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 847, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 13, in emit
+    value = fn()
+            ^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 95, in run
+    df = call()
+         ^^^^^^
+requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+### trade_calendar
+rows=8797 columns=['trade_date']
+date_range=1990-12-19..2026-12-31
+holiday_window=Empty DataFrame
+Columns: [trade_date]
+Index: []
+trade_date
+1990-12-19
+1990-12-20
+1990-12-21
+
+### index_earliest_sh000300
+rows=6003 columns=['date', 'open', 'high', 'low', 'close', 'volume']
+date_range=2002-01-04..2026-09-30
+      date     open     high      low    close  volume
+2002-01-04 1316.455 1316.455 1316.455 1316.455       0
+2002-01-07 1302.084 1302.084 1302.084 1302.084       0
+2002-01-08 1292.714 1292.714 1292.714 1292.714       0
+
+### index_earliest_sh000906
+rows=5282 columns=['date', 'open', 'high', 'low', 'close', 'volume']
+date_range=2005-01-04..2026-09-30
+      date    open     high     low   close     volume
+2005-01-04 995.097  995.097 981.754 983.895  973663097
+2005-01-05 982.918 1000.425 981.591 995.576 1060521011
+2005-01-06 996.098  996.344 983.132 986.216  922193464
+
+### rate_50_daily
+requests=50 elapsed_seconds=2.650 failures=50 failure_samples=[(1, 'ConnectionError', "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"), (2, 'ConnectionError', "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"), (3, 'ConnectionError', "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"), (4, 'ConnectionError', "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"), (5, 'ConnectionError', "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))")]

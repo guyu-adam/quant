@@ -1,0 +1,13 @@
+Installed 5 packages in 29ms
+login success!
+login error_code=0, error_msg=success
+error_code=0, error_msg=success
+      date      code      open      high       low     close  preclose  volume          amount adjustflag
+2020-06-23 sh.600519 1435.0000 1482.0000 1433.5200 1474.5000 1439.0000 3393426 4963194685.0000          3
+2020-06-24 sh.600519 1463.6000 1465.7100 1445.0000 1460.0100 1457.4800 2513899 3663537115.0000          3
+2020-06-29 sh.600519 1448.0000 1466.0000 1437.0100 1463.1700 1460.0100 2808061 4064048236.0000          3
+2020-06-30 sh.600519 1463.1200 1468.9800 1455.1200 1462.8800 1463.1700 2244614 3281641199.0000          3
+factor error_code=0, error_msg=success
+     code dividOperateDate foreAdjustFactor backAdjustFactor adjustFactor
+sh.600519       2020-06-24         0.856267         6.566931     6.566931
+logout success!
