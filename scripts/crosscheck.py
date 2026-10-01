@@ -41,16 +41,18 @@ def main() -> int:
     n = min(args.n, len(eligible))
     points = eligible.sample(n=n, random_state=args.seed).reset_index(drop=True)
     ak_by_code: dict[str, pd.DataFrame | Exception] = {}
+    source_by_code: dict[str, str] = {}
     for code, group in points.groupby("code", sort=True):
         dates = pd.to_datetime(group["date"])
         try:
             bars = ak_daily(str(code), dates.min().strftime("%Y-%m-%d"), dates.max().strftime("%Y-%m-%d"))
+            source_by_code[str(code)] = str(bars.attrs.get("source", "未知"))
             ak_by_code[str(code)] = bars.set_index("date")
         except Exception as exc:
             ak_by_code[str(code)] = exc
 
     failures: list[tuple[str, str, str]] = []
-    deviations: dict[str, list[tuple[str, str, float, float, float, str]]] = {"close": [], "volume": []}
+    deviations: dict[str, list[tuple[str, str, float, float, float, str, str]]] = {"close": [], "volume": []}
     matched = 0
     for row in points.itertuples(index=False):
         code, day = str(row.code), str(row.date)
@@ -71,7 +73,10 @@ def main() -> int:
                 failures.append((code, day, f"{field} 缺失或为零"))
                 continue
             deviation = abs(left / right - 1)
-            deviations[field].append((code, day, left, right, deviation, _reason(field, left, right)))
+            deviations[field].append(
+                (code, day, left, right, deviation, _reason(field, left, right),
+                 source_by_code.get(code, "未知"))
+            )
 
     lines = ["# Baostock 与 AkShare 日线交叉校验", "", f"- 随机种子：{args.seed}", f"- 抽样点数：{n}",
              f"- 成功比对点数：{matched}", f"- 失败点数：{len(failures)}", "", "## 偏差分布", "",
@@ -89,18 +94,23 @@ def main() -> int:
         "",
         "## 偏差超过 0.5% 的明细",
         "",
-        "| 字段 | 股票 | 日期 | Baostock | AkShare | 相对偏差 | 初步原因 |",
-        "|---|---|---|---:|---:|---:|---|",
+        "| 字段 | 股票 | 日期 | 数据源 | Baostock | AkShare | 相对偏差 | 初步原因 |",
+        "|---|---|---|---|---:|---:|---:|---|",
     ])
     for field, values in deviations.items():
-        for code, day, left, right, deviation, reason in values:
+        for code, day, left, right, deviation, reason, source in values:
             if deviation > .005:
                 lines.append(
-                    f"| {field} | {code} | {day} | {left:g} | {right:g} | "
+                    f"| {field} | {code} | {day} | {source} | {left:g} | {right:g} | "
                     f"{deviation:.6%} | {reason} |"
                 )
-    lines.extend(["", "## 失败点及原因", "", "| 股票 | 日期 | 原因 |", "|---|---|---|"])
-    lines.extend(f"| {code} | {day} | {reason} |" for code, day, reason in failures)
+    lines.extend(["", "## 按股票命中的数据源", "", "| 股票 | 数据源 |", "|---|---|"])
+    lines.extend(f"| {code} | {source} |" for code, source in sorted(source_by_code.items()))
+    lines.extend(["", "## 失败点及原因", "", "| 股票 | 日期 | 数据源 | 原因 |", "|---|---|---|---|"])
+    lines.extend(
+        f"| {code} | {day} | {source_by_code.get(code, '无（所有源失败）')} | {reason} |"
+        for code, day, reason in failures
+    )
     lines.append("")
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text("\n".join(lines), encoding="utf-8")
