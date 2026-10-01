@@ -277,15 +277,17 @@ _LOCKBOX_COLUMNS = {
 
 
 def _drop_lockbox(table: pa.Table, name: str) -> pa.Table:
-    """锁定状态下在 Arrow 层剔除锁箱期行，这些行不会被转成 pandas 交给调用方。"""
-    if lockbox.is_unlocked():
+    """锁定状态下在 Arrow 层剔除锁箱期行（研究视界内同时剔除视界之后的行），
+    这些行不会被转成 pandas 交给调用方。"""
+    cutoff_ts, _ = lockbox.effective_cutoff()
+    if cutoff_ts is None:
         return table
     keep = None
     for column in _LOCKBOX_COLUMNS[name]:
         if column not in table.column_names:
             continue
         values = table[column]
-        cutoff = pa.scalar(lockbox.LOCKBOX_TS.to_pydatetime(), type=pa.timestamp("ns"))
+        cutoff = pa.scalar(cutoff_ts.to_pydatetime(), type=pa.timestamp("ns"))
         before = pc.fill_null(pc.less(pc.cast(values, pa.timestamp("ns")), cutoff), True)
         keep = before if keep is None else pc.and_(keep, before)
     if keep is None:
@@ -339,11 +341,13 @@ def load_snapshot(
                     for item in entries
                     if years[0] <= int(Path(item["path"]).stem.split("=")[1]) <= years[1]
                 ]
-            if not lockbox.is_unlocked():
+            cutoff_ts, _ = lockbox.effective_cutoff()
+            if cutoff_ts is not None:
+                last_year = (cutoff_ts - pd.Timedelta(days=1)).year
                 entries = [
                     item
                     for item in entries
-                    if int(Path(item["path"]).stem.split("=")[1]) <= lockbox.LOCKBOX_START.year
+                    if int(Path(item["path"]).stem.split("=")[1]) <= last_year
                 ]
             cols = None if columns is None else list(dict.fromkeys(("date", "code", *columns)))
             pieces = []

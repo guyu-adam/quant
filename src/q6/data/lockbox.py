@@ -13,6 +13,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import contextvars
 import hashlib
 import json
 import os
@@ -53,6 +55,45 @@ def is_unlocked() -> bool:
 
 def current_unlock() -> UnlockRecord | None:
     return _unlocked
+
+
+class HorizonError(LockboxError):
+    """研究视界（research_horizon）之内读到了视界之后的数据：walk-forward 的训练读了测试期。"""
+
+
+# 研究视界（P2-20 walk-forward）：训练步骤只能看到 ≤ horizon 的数据。和锁箱期共用同一套加载层 / 面板层检查，
+# 截止点取两者中较早的一个。contextvars：可嵌套（取最早），只在本线程 / 本进程有效，子进程不继承——
+# walk-forward 的 fit 必须在调用 run_walkforward 的进程内执行。
+_horizon: contextvars.ContextVar[pd.Timestamp | None] = contextvars.ContextVar("q6_horizon", default=None)
+
+
+@contextlib.contextmanager
+def research_horizon(last_day):
+    """with research_horizon("2012-06-29"): ... —— 块内所有快照读取与 Panel 构造只允许日期 ≤ last_day。"""
+    day = pd.Timestamp(last_day).normalize()
+    outer = _horizon.get()
+    token = _horizon.set(day if outer is None else min(outer, day))
+    try:
+        yield
+    finally:
+        _horizon.reset(token)
+
+
+def current_horizon() -> pd.Timestamp | None:
+    return _horizon.get()
+
+
+def effective_cutoff() -> tuple[pd.Timestamp | None, str]:
+    """（截止时刻, 原因）：日期 < 截止时刻 的数据可读。锁箱期解锁且没有研究视界时为 (None, "")。"""
+    cands = []
+    if not is_unlocked():
+        cands.append((LOCKBOX_TS, "lockbox"))
+    h = _horizon.get()
+    if h is not None:
+        cands.append((h + pd.Timedelta(days=1), "horizon"))
+    if not cands:
+        return None, ""
+    return min(cands, key=lambda c: c[0])
 
 
 def relock() -> None:
@@ -134,11 +175,19 @@ def _as_ts(values) -> pd.DatetimeIndex:
 
 
 def check_dates(values, what: str) -> None:
-    """锁定状态下，values 里只要有一个日期 ≥ LOCKBOX_START 就抛错。NaT 忽略。"""
-    if is_unlocked():
+    """锁定状态下，values 里只要有一个日期 ≥ LOCKBOX_START 就抛错；
+    研究视界内，晚于视界的日期抛 HorizonError。NaT 忽略。"""
+    cutoff, why = effective_cutoff()
+    if cutoff is None:
         return
     inside = _as_ts(values)
-    inside = inside[inside >= LOCKBOX_TS]
+    inside = inside[inside >= cutoff]
+    if len(inside) and why == "horizon":
+        raise HorizonError(
+            f"{what} 含 {len(inside)} 个研究视界之后的日期"
+            f"（例如 {inside[0].date()} > {_horizon.get().date()}）；"
+            "walk-forward 的训练步骤只能读训练窗口内的数据"
+        )
     if len(inside):
         raise LockboxError(
             f"{what} 含 {len(inside)} 个锁箱期日期（例如 {inside[0].date()} ≥ {LOCKBOX_START}）；"
@@ -148,8 +197,14 @@ def check_dates(values, what: str) -> None:
 
 def check_year_range(years: tuple[int, int] | None, what: str) -> None:
     """显式请求的年份区间整段落在锁箱期起点所在年之后时直接拒绝（锁箱起点所在年由调用方按日期截断）。"""
-    if is_unlocked() or years is None:
+    if years is None:
         return
+    cutoff, why = effective_cutoff()
+    if cutoff is None:
+        return
+    last_year = (cutoff - pd.Timedelta(days=1)).year
+    if why == "horizon" and max(years) > last_year:
+        raise HorizonError(f"{what} 请求了年份 {years}，超出研究视界 {_horizon.get().date()} 所在年份")
     if max(years) > LOCKBOX_START.year:
         raise LockboxError(
             f"{what} 请求了年份 {years}，超出锁箱期起点 {LOCKBOX_START} 所在年份；"
