@@ -295,8 +295,10 @@ EXIT=1
 | P2-03 | A 股规则：板块、涨跌停价（整数分）、手数、新股无限制天数 | Cen | 完成；真实数据全量比对见下（比 DoD 的抽 50 个更严） | `edb8f92` `02789e6` |
 | P2-12 | 因子算子 25 个 | Bob | 合并。审查实测 rolling.apply 类偏慢（ts_rank 1250×800 要 9.2s），向量化放进 P2-13 | `fa3d2a6` |
 | P2-23 | 实验登记簿（哈希链 + 跨进程锁） | Bob | 合并 + Cen 修 2 处（见下） | `8b4f80c` `83d2857` `e4579e4` |
-| P2-19 | 指标 + IC | Bob | 已派单 | — |
-| P2-13 | 因子库 30 个 + 中性化 + 慢算子向量化 | Bob | 已派单 | — |
+| P2-19 | 指标 + IC（对照 Cen 用独立纯 Python 算的已知序列，误差 <1e-9） | Bob | 合并 | `8922419` |
+| P2-13 | 因子库 30 个（16 自定义 + 14 个 Alpha101，公式逐个对过论文）+ 中性化 + 慢算子向量化（ts_rank 9.3s→0.14s） | Bob | 合并 + Cen 修 3 处（见下） | `a9ca68f` `a3b4650` |
+| P2-24A | 基准指数（价格指数，独立小表进 git）+ 情形区间表 | Bob | 已派单 | — |
+| P2-18b | ML 特征 75 个 | Bob | 已派单 | — |
 
 P2-23 审查时 Cen 修的两处：
 1. `git_dirty`：`registry/runs.jsonl` 本身入库，不排除的话第一条记录之后永远是 dirty，字段失去意义。改为 `git status --porcelain -- . ':!registry'`，加了回归测试（`test_git_dirty_ignores_registry_itself`）。
@@ -322,7 +324,40 @@ DoD 原写"抽样 50 个涨停日逐笔比对"。手里没有交易所公布的�
 
 **对撮合（P2-05）的要求**：特例日由价格本身暴露（当日最高 / 最低越出算出的涨跌停价），撮合一律当作"不可成交日"处理。这样做是保守的（只会少成交），且这些状态在现实中都会提前公告，不构成未来信息。
 
-**已知风险**：`load_snapshot` 读单年 7 列峰值 RSS 约 420MB（独立进程实测）。verify 第 5 步现峰值 444MB，距 512MB 上限只剩 68MB。全区间回测必须分年流式加载，P2-07 引擎设计时处理。
+**更正**：此前这里写"`load_snapshot` 读单年 7 列峰值 RSS 约 420MB"是错的。进程内逐段测：import 后 93MB，读完一年 177MB（DataFrame 本身 21MB），算完涨跌停 234MB。`/usr/bin/time` 看到的 420MB 是整个 pytest 进程（含插件和前面的测试）的峰值。
+
+### P2-13 审查后 Cen 修的 3 处（`a3b4650`）
+
+1. `inputs.vwap` 用的是原始股数 → 得到的是不复权价，和 `*_hfq` 价格口径不一致（卡片要求后复权股数）。目前没有因子用到 vwap，但留着会坑后面的人。改后单测期望值从 10 改为 20（1000 / 后复权股数 50），这是按规格更正，不是迁就实现。
+2. `ops` 滑窗分块上限 2e7 → 2e6 元素。
+3. Bob 给 `load_snapshot` 加了 `date_range` 参数。锁箱守卫本身没被绕开（年份检查和 Arrow 层剔除都还在），但 `date_range` 落进锁箱期时会**静默返回空表**，而 `years` 落进锁箱期是报错——行为不一致。改为同样抛 `LockboxError`，加 2 个测试；删掉这行检查的变异下 2 个测试都失败。
+
+**RSS 超限与 verify 第 5 步的改动**：合并 P2-13 后验收模式第 5 步峰值 584MB，超过 512MB。查因：单看因子数据只有 202×1605×10 列 ≈ 26MB；截断测试每个切点要复制截断 / 扰动 / 挖 NaN 三份输入，加上 macOS malloc 不归还页面，同一个 pytest 进程里几个真实快照测试的峰值一路累加。Bob 的 `test_library_real` 为此在横截面上均匀抽 300 只股票（截断测试查的是时间方向的泄漏，截面算子在 300 只上同样被执行到）；全市场 1605 只单独跑仍要 688MB，**全市场版本没有做**。
+处理：verify 第 5 步改成 `tests/lookahead/` 下每个文件一个进程、各自受 512MB 约束（`verify.sh` / `verify.ps1` 同步改）。这不是放宽上限：每个进程仍然 ≤512MB，测试总数 112 不变（改前一个进程 112 passed，改后 9 个文件之和 5+30+31+6+1+2+11+5+21=112）。
+
+Mac 验收模式（`a3b4650`）：
+
+```
+== [4/6] uv run pytest tests/unit tests/property
+229 passed in 19.75s
+PEAK_RSS 312.6 MiB (limit 512)
+== [5/6] uv run pytest tests/lookahead (one process per file)
+-- tests/lookahead/test_ast_scan.py            5 passed in 0.19s    PEAK_RSS 44.7 MiB
+-- tests/lookahead/test_library_real.py       30 passed in 12.58s   PEAK_RSS 466.4 MiB
+-- tests/lookahead/test_library_truncation.py 31 passed in 4.01s    PEAK_RSS 127.8 MiB
+-- tests/lookahead/test_lockbox_real.py        6 passed in 0.84s    PEAK_RSS 168.7 MiB
+-- tests/lookahead/test_metrics_truncation.py  1 passed in 0.66s    PEAK_RSS 115.4 MiB
+-- tests/lookahead/test_ops_truncation.py      2 passed in 1.00s    PEAK_RSS 118.1 MiB
+-- tests/lookahead/test_real_snapshot.py      11 passed in 8.33s    PEAK_RSS 349.5 MiB
+-- tests/lookahead/test_rules_real.py          5 passed in 1.58s    PEAK_RSS 325.6 MiB
+-- tests/lookahead/test_truncation_selftest.py 21 passed in 1.41s   PEAK_RSS 117.6 MiB
+== [6/6] snapshot validation
+PEAK_RSS 102.5 MiB (limit 512)
+ALL CHECKS PASSED (acceptance mode: real snapshot required)
+```
+（原输出每个文件的 passed 行和 PEAK_RSS 行是分开两行的，这里为了紧凑合成一行，数字未改。）
+
+Win 验收模式（`a3b4650`，`D:\quant6\run-verify.ps1`）：A（绝对路径）`EXIT=0`、B（裸 ID）`EXIT=0`、C（不给快照）`EXIT=1`。A 的日志：第 4 步 `229 passed in 17.59s`、PEAK_RSS 311.4 MiB；第 5 步 9 个文件同样 5/30/31/6/1/2/11/5/21 passed，最高 PEAK_RSS 362.5 MiB（test_library_real）；第 6 步 `snapshot D:\quant6\repo\data\snapshots\6252e931a86bda15 OK`；`ALL CHECKS PASSED (acceptance mode: real snapshot required)`。C 在第 5 步第二个文件 test_library_real 处报 `Q6_REQUIRE_SNAPSHOT=1 但 Q6_SNAPSHOT 未设置` 并失败。
 
 ### Win 端用真实快照跑验收模式（补 P1 留下的缺口）
 
