@@ -16,7 +16,7 @@ def main() -> None:
     snapshot_id = os.environ.get("Q6_SNAPSHOT", "6252e931a86bda15")
     for strategy in (ShortReversal(), PairsDistance()):
         feed = SnapshotFeed(root, snapshot_id, extra_fields=strategy.spec.fields)
-        result = EventEngine().run(strategy, feed, "2015-01-01", "2015-12-31")
+        result = EventEngine().run(strategy, feed, "2015-01-01", "2016-12-31")
         returns = result.returns
         print(f"{strategy.name}: annualized_return={ann_return(returns):.6f} "
               f"max_drawdown={max_drawdown(returns):.6f} trades={len(result.fills)} reasons={result.reasons}")

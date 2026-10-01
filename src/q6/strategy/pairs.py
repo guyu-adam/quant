@@ -25,9 +25,9 @@ class PairsDistance(StrategyBase):
         self.formation, self.trading, self.n_pairs, self.pool = formation, trading, n_pairs, pool
         self.entry, self.exit, self.stop, self.gross = entry, exit, stop, gross
         self._calls = 0
-        self._pairs: list[tuple[int, int, float, float, float, float]] = []
-        self._open: dict[tuple[int, int], int] = {}
-        self._stopped: set[tuple[int, int]] = set()
+        self._pairs: list[tuple[str, str, float, float, float, float]] = []
+        self._open: dict[tuple[str, str], str] = {}
+        self._stopped: set[tuple[str, str]] = set()
 
     @property
     def spec(self) -> StrategySpec:
@@ -63,7 +63,7 @@ class PairsDistance(StrategyBase):
         for _, a, b, mu, sigma in ranked:
             if a in used or b in used or not np.isfinite(sigma) or sigma <= 0:
                 continue
-            pairs.append((int(candidates[a]), int(candidates[b]), mu, sigma,
+            pairs.append((v.symbols[int(candidates[a])], v.symbols[int(candidates[b])], mu, sigma,
                           float(px[0, candidates[a]]), float(px[0, candidates[b]])))
             used.update((a, b))
             if len(pairs) == self.n_pairs:
@@ -80,16 +80,22 @@ class PairsDistance(StrategyBase):
         v = ctx.view
         px = v.latest("close_hfq")
         symbols = v.symbols
+        symbol_index = {symbol: j for j, symbol in enumerate(symbols)}
         eligible = (ctx.universe_mask() & (v.latest("tradestatus") == 1)
                     & (v.latest("is_st") != 1) & (v.latest("is_new") != 1))
-        active: list[tuple[int, int]] = []
+        active: list[tuple[str, str]] = []
         for a, b, mu, sigma, base_a, base_b in self._pairs:
             key = (a, b)
-            if not (eligible[a] and eligible[b] and np.isfinite(px[a]) and np.isfinite(px[b])):
+            if a not in symbol_index or b not in symbol_index:
                 if key in self._open:
                     active.append(key)
                 continue
-            z = ((px[a] / base_a - px[b] / base_b) - mu) / sigma
+            ia, ib = symbol_index[a], symbol_index[b]
+            if not (eligible[ia] and eligible[ib] and np.isfinite(px[ia]) and np.isfinite(px[ib])):
+                if key in self._open:
+                    active.append(key)
+                continue
+            z = ((px[ia] / base_a - px[ib] / base_b) - mu) / sigma
             az = abs(z)
             if key in self._open:
                 if az < self.exit:
@@ -110,5 +116,5 @@ class PairsDistance(StrategyBase):
         for key in active:
             leg = self._open.get(key)
             if leg is not None:
-                result[symbols[leg]] = result.get(symbols[leg], 0.0) + weight
+                result[leg] = result.get(leg, 0.0) + weight
         return result

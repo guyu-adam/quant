@@ -27,6 +27,16 @@ def make_context(t=70, changed=False):
     return BarContext(view, AccountSnapshot(view.now.to_pydatetime(), 1e6), SYMS)
 
 
+def make_code_context(symbols, prices, day):
+    dates = pd.DatetimeIndex([pd.Timestamp(day)])
+    values = np.asarray([prices[s] for s in symbols], dtype=float)[None, :]
+    fields = {"close_hfq": values, "amount": np.full_like(values, 1e6),
+              "tradestatus": np.ones_like(values), "is_st": np.zeros_like(values),
+              "is_new": np.zeros_like(values)}
+    view = Panel(dates, symbols, fields).view(0)
+    return BarContext(view, AccountSnapshot(view.now.to_pydatetime(), 1e6), tuple(symbols))
+
+
 def test_forms_nonoverlapping_pairs_and_frozen_stats():
     s = PairsDistance(formation=50, trading=10, n_pairs=2, pool=4)
     s.on_bar(make_context())
@@ -60,6 +70,19 @@ def test_pair_membership_is_disjoint():
     assert len(members) == len(set(members))
 
 
+def test_open_pair_keeps_same_code_when_segment_column_order_changes():
+    s = PairsDistance(formation=50, trading=10, n_pairs=1, pool=2)
+    # Advance past formation, then install a known formed pair for this transition test.
+    s.on_bar(make_context())
+    s._pairs = [("A", "B", 0.0, 1.0, 10.0, 10.0)]
+    first = make_code_context(("A", "B"), {"A": 40.0, "B": 10.0}, "2015-12-31")
+    assert s.on_bar(first) == {"B": 0.95}
+
+    second = make_code_context(("B", "A", "C"),
+                               {"A": 40.0, "B": 10.0, "C": 20.0}, "2016-01-04")
+    assert s.on_bar(second) == {"B": 0.95}
+
+
 def test_event_engine_runs_full_interval_with_trades_and_finite_equity():
     days = pd.bdate_range("2015-01-05", periods=90)
     ca = np.full(len(days), 10.0)
@@ -75,7 +98,7 @@ def test_event_engine_runs_full_interval_with_trades_and_finite_equity():
               "close_hfq": close}
     class Feed:
         fields = ENGINE_FIELDS + ("close_hfq",)
-        def segments(self, start, end, warmup):
+        def segments(self, start, end, warmup, keep=None):
             panel = Panel.from_frames(fields)
             yield Segment(panel, 0, np.ones((len(days), 2), dtype=bool))
     strategy = PairsDistance(formation=20, trading=90, n_pairs=1, pool=2,
