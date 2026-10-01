@@ -8,7 +8,8 @@ from q6.strategy.base import BarContext, StrategyBase, StrategySpec
 
 
 class LowVolEqualWeight(StrategyBase):
-    """每 `every` 个交易日调仓：在可投资范围内、当日可交易的股票里，取近 `lookback` 日收益波动最低的 `n` 只等权。"""
+    """每 `every` 个交易日调仓：在可投资范围内、当日可交易的股票里，
+    取近 `lookback` 日收益波动最低的 `n` 只等权。"""
 
     name = "example_lowvol"
 

@@ -227,7 +227,8 @@ ALLOWED_READERS = {
     "scripts/build_snapshot_year.py": "P1 快照构建",
     "scripts/build_universe.py": "P1 成分股构建",
     "scripts/crosscheck.py": "P1 跨源比价（数据质量检查）",
-    "src/q6/data/benchmarks.py": "基准指数小表；读后经 snapshot._drop_lockbox 剔除锁箱期（test_benchmarks 有测试 + 变异验证）",
+    "src/q6/data/benchmarks.py":
+        "基准指数小表；读后经 snapshot._drop_lockbox 剔除锁箱期（test_benchmarks 有测试 + 变异验证）",
 }
 READERS = {"read_parquet", "read_table", "ParquetFile", "ParquetDataset", "dataset", "read_feather"}
 

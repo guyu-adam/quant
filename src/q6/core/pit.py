@@ -38,7 +38,8 @@ class Panel:
         *,
         copy: bool = True,
     ) -> None:
-        """copy=False 只给"构造完就丢掉自己引用"的调用方（引擎数据源）用，省一份面板内存；数组仍会被设为只读。"""
+        """copy=False 只给"构造完就丢掉自己引用"的调用方（引擎数据源）用，省一份面板内存；
+        数组仍会被设为只读。"""
         d = pd.DatetimeIndex(pd.to_datetime(list(dates) if not isinstance(dates, pd.Index) else dates))
         if d.hasnans:
             raise ValueError("dates 含 NaT")

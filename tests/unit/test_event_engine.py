@@ -71,7 +71,8 @@ def run(f, plan, warmup=1, cfg=NOCOST):
 
 
 def test_signal_at_t_fills_at_t_plus_1_open():
-    close = [10, 10, 10, 10.6, 10.8, 10.8, 10.8, 10.8]  # 涨幅都在 10% 以内（合成数据也得守涨跌停，否则会被当特例日）
+    close = [10, 10, 10, 10.6, 10.8, 10.8, 10.8, 10.8]
+    # 涨幅都在 10% 以内（合成数据也得守涨跌停，否则会被当特例日）
     opn = pd.DataFrame({A: [10, 10, 10, 10.5, 10.8, 10.8, 10.8, 10.8], B: [20.0] * 8}, index=DAYS)
     res, _ = run(frames(close_a=close, open=opn), {2: {A: 0.5}})
     (fill,) = res.fills
@@ -119,7 +120,8 @@ def test_costs_reduce_equity_and_invariant():
     d = res.daily
     assert d["fees"].sum() > 0 and d["cost_slip_imp"].sum() > 0
     # 价格全程不变：最终权益 = 初始资金 − 全部显性费用 − 滑点冲击
-    assert d["equity"].iloc[-1] == pytest.approx(1_000_000 - d["fees"].sum() - d["cost_slip_imp"].sum(), rel=1e-9)
+    costs = d["fees"].sum() + d["cost_slip_imp"].sum()
+    assert d["equity"].iloc[-1] == pytest.approx(1_000_000 - costs, rel=1e-9)
     assert d["n_pos"].iloc[-1] == 0
 
 
