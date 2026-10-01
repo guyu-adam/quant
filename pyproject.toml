@@ -36,6 +36,8 @@ addopts = "-q"
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+# scripts/probe 是 P1-05 实测报告的原始证据脚本，保持原样不做格式化
+extend-exclude = ["scripts/probe"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

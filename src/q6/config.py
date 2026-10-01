@@ -91,7 +91,8 @@ class Config(BaseModel):
 
     @property
     def touches_lockbox(self) -> bool:
-        return self.data.end > self.split.lockbox_start
+        # lockbox_start 当天就属于锁箱期，所以是 >=（Cen 审查时修正的边界）
+        return self.data.end >= self.split.lockbox_start
 
 
 def _validation_message(error: ValidationError) -> str:

@@ -65,3 +65,15 @@ def test_env_is_git_ignored() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_touches_lockbox_boundary():
+    """锁箱期首日（2024-07-01）本身就在锁箱期内。"""
+    from q6.config import Config
+
+    def cfg(end):
+        return Config.model_validate({"data": {"start": "2020-01-02", "end": end}})
+
+    assert not cfg("2024-06-28").touches_lockbox
+    assert cfg("2024-07-01").touches_lockbox
+    assert cfg("2024-07-02").touches_lockbox
