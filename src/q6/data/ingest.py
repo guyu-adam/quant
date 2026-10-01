@@ -44,7 +44,8 @@ def _atomic_parquet(frame: pd.DataFrame, path: Path) -> None:
     os.close(fd)
     try:
         frame.to_parquet(temp_name, index=False)
-        with open(temp_name, "rb") as stream:
+        # Windows 的 fsync（FlushFileBuffers）要求句柄有写权限，只读打开会报 EBADF
+        with open(temp_name, "r+b") as stream:
             os.fsync(stream.fileno())
         os.replace(temp_name, path)
     except BaseException:
