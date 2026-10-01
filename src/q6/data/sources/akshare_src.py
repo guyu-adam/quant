@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import signal
 from collections.abc import Callable
 from typing import Any
 
@@ -24,6 +25,27 @@ _COLUMN_MAP = {
 _FIELDS = ["date", "code", "open", "high", "low", "close", "volume", "amount", "turn", "pctChg"]
 
 
+def _request_with_timeout(fn: Callable[..., pd.DataFrame], kwargs: dict[str, Any]) -> pd.DataFrame:
+    """在主线程为无 timeout 参数的 AkShare 调用设置 20 秒硬超时。"""
+    if not hasattr(signal, "SIGALRM"):
+        return fn(**kwargs)
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_alarm = signal.alarm(20)
+
+    def timeout_handler(_signum: int, _frame: Any) -> None:
+        raise TimeoutError("AkShare 请求超过 20 秒")
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(20)
+    try:
+        return fn(**kwargs)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        if previous_alarm:
+            signal.alarm(previous_alarm)
+
+
 def _call_with_route(
     fn: Callable[..., pd.DataFrame], kwargs: dict[str, Any], proxy: str | None
 ) -> pd.DataFrame:
@@ -35,7 +57,7 @@ def _call_with_route(
                 os.environ[key] = proxy
             else:
                 os.environ.pop(key, None)
-        return fn(**kwargs)
+        return _request_with_timeout(fn, kwargs)
     finally:
         for key, value in previous.items():
             if value is None:
@@ -93,11 +115,14 @@ def daily(code: str, start: str, end: str) -> pd.DataFrame:
             if route == "代理" and not route_proxy:
                 errors.append(f"{source}/{route}: 未配置 HTTPS_PROXY")
                 continue
-            try:
-                raw = _call_with_route(fn, kwargs, route_proxy)
-                if raw is None or raw.empty:
-                    raise ValueError("接口返回空数据")
-                return _normalize(raw, code, source, lots)
-            except Exception as exc:
-                errors.append(f"{source}/{route}: {type(exc).__name__}: {exc}")
+            for attempt in range(3):
+                try:
+                    raw = _call_with_route(fn, kwargs, route_proxy)
+                    if raw is None or raw.empty:
+                        raise ValueError("接口返回空数据")
+                    return _normalize(raw, code, source, lots)
+                except Exception as exc:
+                    errors.append(
+                        f"{source}/{route} 第{attempt + 1}次: {type(exc).__name__}: {exc}"
+                    )
     raise RuntimeError("所有 AkShare 数据源均失败：" + "；".join(errors))
