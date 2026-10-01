@@ -95,3 +95,22 @@ def test_lock_timeout(tmp_path, monkeypatch):
     monkeypatch.setattr(runs, "LOCK_TIMEOUT_S", 0.02)
     with pytest.raises(TimeoutError):
         _record(tmp_path)
+
+
+def test_git_dirty_ignores_registry_itself(tmp_path, monkeypatch):
+    import subprocess
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
+
+    git("init", "-q")
+    (tmp_path / "registry").mkdir()
+    (tmp_path / "registry" / "runs.jsonl").write_text("a\n")
+    (tmp_path / "code.py").write_text("x = 1\n")
+    git("add", ".")
+    git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
+    monkeypatch.setattr(runs, "REPO_ROOT", tmp_path)
+    (tmp_path / "registry" / "runs.jsonl").write_text("a\nb\n")  # 追加登记不算改代码
+    assert runs._git_metadata()[1] is False
+    (tmp_path / "code.py").write_text("x = 2\n")
+    assert runs._git_metadata()[1] is True

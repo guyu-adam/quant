@@ -60,7 +60,8 @@ def _git_metadata() -> tuple[str | None, bool | None]:
             check=True, capture_output=True, text=True,
         ).stdout.strip()
         dirty = bool(subprocess.run(
-            ["git", "-C", str(REPO_ROOT), "status", "--porcelain"],
+            # registry/ 本身入库：不排除的话第一条记录之后永远是 dirty，这个字段就没意义了
+            ["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--", ".", ":!registry"],
             check=True, capture_output=True, text=True,
         ).stdout.strip())
         if len(sha) != 40:
