@@ -29,6 +29,7 @@ from q6.market.rules_cn import (
         ("sz.001979", Board.MAIN),
         ("sz.300750", Board.CHINEXT),
         ("sz.301269", Board.CHINEXT),
+        ("sz.302132", Board.CHINEXT),
         ("sh.688981", Board.STAR),
         ("sh.689009", Board.STAR),
     ],

@@ -52,7 +52,8 @@ def board_of(code: str) -> Board:
         return Board.STAR
     if market == "sz" and num[:3] in {"000", "001", "002", "003"}:
         return Board.MAIN
-    if market == "sz" and num[:3] in {"300", "301"}:
+    # 创业板 = sz.30xxxx（含 2025 年代码变更产生的 302 号段，如 sz.302132）
+    if market == "sz" and num[:2] == "30":
         return Board.CHINEXT
     raise ValueError(f"不支持的代码 {code!r}（只处理沪深主板、创业板、科创板 A 股）")
 
