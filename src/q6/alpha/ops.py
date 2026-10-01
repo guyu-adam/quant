@@ -56,25 +56,48 @@ def ts_max(x: pd.DataFrame, d: int) -> pd.DataFrame:
 
 def ts_argmin(x: pd.DataFrame, d: int) -> pd.DataFrame:
     """Return the zero-based position of the minimum in each complete window."""
-    d = _window(d)
-    return x.rolling(d, min_periods=d).apply(lambda a: float(np.argmin(a)), raw=True)
+    return _window_extreme(x, d, False)
 
 
 def ts_argmax(x: pd.DataFrame, d: int) -> pd.DataFrame:
     """Return the zero-based position of the maximum in each complete window."""
+    return _window_extreme(x, d, True)
+
+
+def _window_extreme(x: pd.DataFrame, d: int, maximum: bool) -> pd.DataFrame:
     d = _window(d)
-    return x.rolling(d, min_periods=d).apply(lambda a: float(np.argmax(a)), raw=True)
+    if len(x) < d:
+        return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    a = x.to_numpy(dtype=float, copy=False)
+    out = np.full(a.shape, np.nan)
+    step = max(1, 20_000_000 // (a.shape[0] * d))
+    for start in range(0, a.shape[1], step):
+        block = a[:, start : start + step]
+        win = np.lib.stride_tricks.sliding_window_view(block, d, axis=0)
+        valid = ~np.isnan(win).any(axis=-1)
+        idx = np.argmax(win, axis=-1) if maximum else np.argmin(win, axis=-1)
+        dest = out[d - 1 :, start : start + step]
+        dest[:] = np.where(valid, idx, np.nan)
+    return pd.DataFrame(out, index=x.index, columns=x.columns)
 
 
 def ts_rank(x: pd.DataFrame, d: int) -> pd.DataFrame:
     """Return today's midrank percentile among d observations, normalized by d-1."""
     d = _window(d)
     if d == 1:
-        return x.rolling(1, min_periods=1).apply(lambda a: np.nan, raw=True)
-    def rank_last(a: np.ndarray) -> float:
-        v = a[-1]
-        return float(((a < v).sum() + 0.5 * ((a == v).sum() - 1)) / (d - 1))
-    return x.rolling(d, min_periods=d).apply(rank_last, raw=True)
+        return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    if len(x) < d:
+        return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    a = x.to_numpy(dtype=float, copy=False)
+    out = np.full(a.shape, np.nan)
+    step = max(1, 20_000_000 // (a.shape[0] * d))
+    for start in range(0, a.shape[1], step):
+        win = np.lib.stride_tricks.sliding_window_view(a[:, start : start + step], d, axis=0)
+        last = win[..., -1, None]
+        valid = ~np.isnan(win).any(axis=-1)
+        ranks = ((win < last).sum(axis=-1) + 0.5 * ((win == last).sum(axis=-1) - 1)) / (d - 1)
+        out[d - 1 :, start : start + step] = np.where(valid, ranks, np.nan)
+    return pd.DataFrame(out, index=x.index, columns=x.columns)
 
 
 def ts_zscore(x: pd.DataFrame, d: int) -> pd.DataFrame:
@@ -85,7 +108,8 @@ def ts_zscore(x: pd.DataFrame, d: int) -> pd.DataFrame:
 
 def ts_product(x: pd.DataFrame, d: int) -> pd.DataFrame:
     """Return the complete d-row rolling product."""
-    return x.rolling(_window(d), min_periods=_window(d)).apply(np.prod, raw=True)
+    d = _window(d)
+    return _window_reduce(x, d, lambda a: np.prod(a, axis=-1))
 
 
 def ts_corr(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:
@@ -97,14 +121,41 @@ def ts_corr(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:
 def ts_cov(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:
     """Return complete-window rolling sample covariance (ddof=1) of x and y."""
     _same_shape(x, y)
-    return x.rolling(_window(d), min_periods=_window(d)).cov(y, ddof=1)
+    d = _window(d)
+    if d == 1 or len(x) < d:
+        return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    xa = x.to_numpy(dtype=float, copy=False)
+    ya = y.to_numpy(dtype=float, copy=False)
+    out = np.full(xa.shape, np.nan)
+    step = max(1, 20_000_000 // (xa.shape[0] * d))
+    for start in range(0, xa.shape[1], step):
+        xw = np.lib.stride_tricks.sliding_window_view(xa[:, start : start + step], d, axis=0)
+        yw = np.lib.stride_tricks.sliding_window_view(ya[:, start : start + step], d, axis=0)
+        valid = ~np.isnan(xw).any(axis=-1) & ~np.isnan(yw).any(axis=-1)
+        covariance = (np.einsum("...i,...i->...", xw, yw) - xw.sum(axis=-1) * yw.sum(axis=-1) / d) / (d - 1)
+        out[d - 1 :, start : start + step] = np.where(valid, covariance, np.nan)
+    return pd.DataFrame(out, index=x.index, columns=x.columns)
 
 
 def decay_linear(x: pd.DataFrame, d: int) -> pd.DataFrame:
     """Return rolling weighted mean with chronological weights 1 through d."""
     d = _window(d)
     weights = np.arange(1, d + 1, dtype=float)
-    return x.rolling(d, min_periods=d).apply(lambda a: float(a @ weights / weights.sum()), raw=True)
+    return _window_reduce(x, d, lambda a: np.tensordot(a, weights, axes=([-1], [0])) / weights.sum())
+
+
+def _window_reduce(x: pd.DataFrame, d: int, reducer) -> pd.DataFrame:
+    if len(x) < d:
+        return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+    a = x.to_numpy(dtype=float, copy=False)
+    out = np.full(a.shape, np.nan)
+    step = max(1, 20_000_000 // (a.shape[0] * d))
+    for start in range(0, a.shape[1], step):
+        win = np.lib.stride_tricks.sliding_window_view(a[:, start : start + step], d, axis=0)
+        valid = ~np.isnan(win).any(axis=-1)
+        values = reducer(win)
+        out[d - 1 :, start : start + step] = np.where(valid, values, np.nan)
+    return pd.DataFrame(out, index=x.index, columns=x.columns)
 
 
 def ewm_mean(x: pd.DataFrame, halflife: float) -> pd.DataFrame:
