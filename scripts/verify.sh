@@ -35,6 +35,6 @@ run_step 2 'uv run ruff check src tests scripts' uv run ruff check src tests scr
 run_step 3 'uv run python -m q6.lint.lookahead_ast src' uv run python -m q6.lint.lookahead_ast src
 run_step 4 'uv run pytest tests/unit tests/property' rss_guard uv run pytest tests/unit tests/property
 run_step 5 'uv run pytest tests/lookahead' rss_guard uv run pytest tests/lookahead
-run_step 6 'snapshot validation' rss_guard uv run python -c 'import os; from pathlib import Path; from q6.data.snapshot import verify_snapshot; snapshot=os.environ.get("Q6_SNAPSHOT"); print("SKIP snapshot (Q6_SNAPSHOT unset)") if not snapshot else verify_snapshot(Path(os.environ.get("Q6_SNAPSHOT_ROOT", "data/snapshots")), snapshot)'
+run_step 6 'snapshot validation' rss_guard uv run python scripts/check_snapshot.py
 
 printf 'ALL CHECKS PASSED\n'

@@ -56,7 +56,7 @@ Invoke-Step 3 "uv run python -m q6.lint.lookahead_ast src" { & $uv run python -m
 Invoke-Step 4 "uv run pytest tests/unit tests/property" { Invoke-RssGuard @("uv", "run", "pytest", "tests/unit", "tests/property") }
 Invoke-Step 5 "uv run pytest tests/lookahead" { Invoke-RssGuard @("uv", "run", "pytest", "tests/lookahead") }
 Invoke-Step 6 "snapshot validation" {
-    Invoke-RssGuard @("uv", "run", "python", "-c", 'import os; from pathlib import Path; from q6.data.snapshot import verify_snapshot; snapshot=os.environ.get("Q6_SNAPSHOT"); print("SKIP snapshot (Q6_SNAPSHOT unset)") if not snapshot else verify_snapshot(Path(os.environ.get("Q6_SNAPSHOT_ROOT", "data/snapshots")), snapshot)')
+    Invoke-RssGuard @("uv", "run", "python", "scripts/check_snapshot.py")
 }
 
 Write-Output "ALL CHECKS PASSED"
