@@ -59,4 +59,9 @@ Invoke-Step 6 "snapshot validation" {
     Invoke-RssGuard @("uv", "run", "python", "scripts/check_snapshot.py")
 }
 
-Write-Output "ALL CHECKS PASSED"
+if ($env:Q6_REQUIRE_SNAPSHOT -eq "1") {
+    Write-Output "ALL CHECKS PASSED (acceptance mode: real snapshot required)"
+}
+else {
+    Write-Output "ALL CHECKS PASSED (dev mode: missing snapshot is skipped, NOT valid for acceptance; set Q6_REQUIRE_SNAPSHOT=1)"
+}

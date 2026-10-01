@@ -189,8 +189,17 @@ def write_snapshot(
         raise
 
 
-def _read_manifest(root: Path, snapshot_id: str) -> tuple[Path, dict, list[dict]]:
-    directory = Path(root) / snapshot_id
+def _resolve(root: Path, snapshot: str | Path) -> tuple[Path, str]:
+    """snapshot 可以是裸 ID（到 root 下找），也可以是快照目录路径（绝对，或相对当前目录）。
+
+    ID 一律取目录名，再与清单、重算值比对。"""
+    spec = Path(snapshot)
+    directory = spec if spec.is_absolute() or len(spec.parts) > 1 else Path(root) / spec
+    return directory, directory.name
+
+
+def _read_manifest(root: Path, snapshot: str | Path) -> tuple[Path, dict, list[dict]]:
+    directory, snapshot_id = _resolve(root, snapshot)
     try:
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
         files = manifest["files"]
@@ -199,7 +208,8 @@ def _read_manifest(root: Path, snapshot_id: str) -> tuple[Path, dict, list[dict]
         raise SnapshotIntegrityError(f"无法读取快照清单 {directory / 'manifest.json'}: {exc}") from exc
     if calculated != snapshot_id or manifest.get("snapshot_id") != snapshot_id:
         raise SnapshotIntegrityError(
-            f"快照 ID 不一致：目录={snapshot_id}，清单={manifest.get('snapshot_id')}，计算={calculated}"
+            f"快照 ID 不一致：目录={snapshot_id}（{directory}），"
+            f"清单={manifest.get('snapshot_id')}，计算={calculated}"
         )
     return directory, manifest, files
 
@@ -232,8 +242,8 @@ def _validate_file(directory: Path, entry: dict) -> Path:
     return path
 
 
-def verify_snapshot(root: Path, snapshot_id: str) -> None:
-    """校验清单地址、全部文件哈希及行数/字节数。"""
+def verify_snapshot(root: Path, snapshot_id: str | Path) -> None:
+    """校验清单地址、全部文件哈希及行数/字节数。snapshot_id 也可传快照目录路径。"""
     directory, _, files = _read_manifest(root, snapshot_id)
     _validate_extras(directory, files)
     for entry in files:
@@ -242,7 +252,7 @@ def verify_snapshot(root: Path, snapshot_id: str) -> None:
 
 def load_snapshot(
     root: Path,
-    snapshot_id: str,
+    snapshot_id: str | Path,
     tables: tuple[str, ...] = ("daily",),
     years: tuple[int, int] | None = None,
     columns: tuple[str, ...] | None = None,

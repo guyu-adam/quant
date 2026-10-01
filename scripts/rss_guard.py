@@ -69,6 +69,10 @@ def main() -> int:
 
     peak_mib = peak_bytes / (1024 * 1024)
     print(f"PEAK_RSS {peak_mib:.1f} MiB (limit {args.limit_mb:g})", flush=True)
+    if peak_bytes <= 0:
+        # 读不到读数时不能当作通过，否则守卫形同虚设
+        print("RSS MEASUREMENT FAILED", file=sys.stderr, flush=True)
+        return returncode or 1
     if returncode == 0 and peak_mib > args.limit_mb:
         print("RSS LIMIT EXCEEDED", file=sys.stderr, flush=True)
         return 1

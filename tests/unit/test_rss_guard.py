@@ -1,3 +1,4 @@
+import os
 import re
 import subprocess
 import sys
@@ -46,3 +47,19 @@ def test_propagates_child_exit_code() -> None:
     result = run_guard(512, "raise SystemExit(3)")
     assert result.returncode == 3
     assert "PEAK_RSS " in result.stdout
+
+
+def test_zero_reading_fails(monkeypatch) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("rss_guard", GUARD)
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    monkeypatch.setattr(sys, "argv", ["rss_guard", "--limit-mb", "512", "--", sys.executable, "-c", "pass"])
+    if os.name == "nt":
+        monkeypatch.setattr(guard, "windows_peak", lambda pid, process: 0)
+    else:
+        import resource
+
+        monkeypatch.setattr(resource, "getrusage", lambda who: type("R", (), {"ru_maxrss": 0})())
+    assert guard.main() == 1

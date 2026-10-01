@@ -1,7 +1,7 @@
 """端到端：真实快照 → Panel → 截断测试。
 
-需要环境变量 Q6_SNAPSHOT（快照 ID；可选 Q6_SNAPSHOT_ROOT，默认 data/snapshots）。
-未设置时 skip——verify 脚本的第 6 步会显式打印 SKIP，不会静默。
+需要环境变量 Q6_SNAPSHOT（快照 ID 或快照目录路径；裸 ID 到 Q6_SNAPSHOT_ROOT 下找，默认 data/snapshots）。
+未设置时：Q6_REQUIRE_SNAPSHOT=1（验收模式）直接报错；否则 skip（日常开发 / Win 端无快照时）。
 只取 2015-05 ~ 2016-02：覆盖 2015 股灾、千股停牌、2016-01 熔断，缺失与停牌最密集，最容易暴露 bfill 类问题。
 窗口和列都收窄是为了守住进程 RSS ≤512MB（两年全列读入时峰值 845MB）。
 """
@@ -17,12 +17,17 @@ from q6.lint.truncation_test import check_lookahead
 from .samples import CLEAN, LAG, LEAKY
 
 SNAP = os.environ.get("Q6_SNAPSHOT")
-pytestmark = pytest.mark.skipif(not SNAP, reason="Q6_SNAPSHOT 未设置")
+REQUIRE = os.environ.get("Q6_REQUIRE_SNAPSHOT") == "1"
 
 
 @pytest.fixture(scope="module")
 def real_data():
     from q6.data.snapshot import load_snapshot
+
+    if not SNAP:
+        if REQUIRE:
+            pytest.fail("Q6_REQUIRE_SNAPSHOT=1 但 Q6_SNAPSHOT 未设置：验收模式不允许跳过真实快照测试")
+        pytest.skip("Q6_SNAPSHOT 未设置")
 
     root = Path(os.environ.get("Q6_SNAPSHOT_ROOT", "data/snapshots"))
     daily = load_snapshot(root, SNAP, ("daily",), years=(2015, 2016),

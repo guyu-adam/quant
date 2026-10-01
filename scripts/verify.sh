@@ -37,4 +37,8 @@ run_step 4 'uv run pytest tests/unit tests/property' rss_guard uv run pytest tes
 run_step 5 'uv run pytest tests/lookahead' rss_guard uv run pytest tests/lookahead
 run_step 6 'snapshot validation' rss_guard uv run python scripts/check_snapshot.py
 
-printf 'ALL CHECKS PASSED\n'
+if [[ "${Q6_REQUIRE_SNAPSHOT:-}" == 1 ]]; then
+  printf 'ALL CHECKS PASSED (acceptance mode: real snapshot required)\n'
+else
+  printf 'ALL CHECKS PASSED (dev mode: missing snapshot is skipped, NOT valid for acceptance; set Q6_REQUIRE_SNAPSHOT=1)\n'
+fi

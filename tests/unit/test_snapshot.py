@@ -231,3 +231,23 @@ def test_year_partition_path_iterator_preserves_snapshot_bytes(tmp_path: Path) -
     assert copied_id == snapshot_id
     for _, path in partitions:
         assert path.read_bytes() == (copied_root / copied_id / "daily" / path.name).read_bytes()
+
+
+def test_snapshot_accepts_directory_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Adam 验收时把 Q6_SNAPSHOT 设成了目录路径；ID 必须取目录名，而不是把整条路径当 ID 比较
+    snapshot_id = write_snapshot(_tables(), tmp_path, asof="2012-12-31", sources={}, code_version="test")
+    absolute = tmp_path / snapshot_id
+    verify_snapshot(Path("unused-root"), absolute)
+    verify_snapshot(Path("unused-root"), str(absolute) + "/")
+    monkeypatch.chdir(tmp_path.parent)
+    relative = f"{tmp_path.name}/{snapshot_id}"
+    verify_snapshot(Path("unused-root"), relative)
+    assert not load_snapshot(Path("unused-root"), relative)["daily"].empty
+
+
+def test_renamed_snapshot_directory_is_rejected(tmp_path: Path) -> None:
+    snapshot_id = write_snapshot(_tables(), tmp_path, asof="2012-12-31", sources={}, code_version="test")
+    renamed = tmp_path / "renamed"
+    (tmp_path / snapshot_id).rename(renamed)
+    with pytest.raises(SnapshotIntegrityError, match="快照 ID 不一致"):
+        verify_snapshot(tmp_path, renamed)
