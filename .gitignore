@@ -19,6 +19,8 @@ saves/
 logs/
 cache/
 data/raw/
+data/universe/
+data/cache/
 data/snapshots/*/*.parquet
 data/snapshots/*/**/*.parquet
 *.sqlite
