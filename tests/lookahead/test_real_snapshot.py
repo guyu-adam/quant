@@ -20,14 +20,19 @@ SNAP = os.environ.get("Q6_SNAPSHOT")
 REQUIRE = os.environ.get("Q6_REQUIRE_SNAPSHOT") == "1"
 
 
-@pytest.fixture(scope="module")
-def real_data():
-    from q6.data.snapshot import load_snapshot
-
+def require_snapshot_configured():
+    """Apply the established real-snapshot skip/fail policy without loading data."""
     if not SNAP:
         if REQUIRE:
             pytest.fail("Q6_REQUIRE_SNAPSHOT=1 但 Q6_SNAPSHOT 未设置：验收模式不允许跳过真实快照测试")
         pytest.skip("Q6_SNAPSHOT 未设置")
+
+
+@pytest.fixture(scope="module")
+def real_data():
+    from q6.data.snapshot import load_snapshot
+
+    require_snapshot_configured()
 
     root = Path(os.environ.get("Q6_SNAPSHOT_ROOT", "data/snapshots"))
     daily = load_snapshot(root, SNAP, ("daily",), years=(2015, 2016),

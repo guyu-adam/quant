@@ -285,6 +285,7 @@ def load_snapshot(
     tables: tuple[str, ...] = ("daily",),
     years: tuple[int, int] | None = None,
     columns: tuple[str, ...] | None = None,
+    date_range: tuple[str, str] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """校验并读取指定表；daily 可按闭区间年份筛选、按列裁剪（date / code 总会读入）。
 
@@ -294,6 +295,14 @@ def load_snapshot(
     - 其余所有表都在 Arrow 层剔除日期 ≥ 锁箱起点的行（universe_monthly 同时看 month_end 和 update_date）。
     """
     lockbox.check_year_range(years, "load_snapshot")
+    if date_range is not None and "daily" not in tables:
+        raise ValueError("date_range 仅适用于 daily 表")
+    date_filters = None
+    if date_range is not None:
+        start, end = map(pd.Timestamp, date_range)
+        if start > end:
+            raise ValueError("date_range 起始日期必须不晚于结束日期")
+        date_filters = [("date", ">=", start.to_pydatetime()), ("date", "<=", end.to_pydatetime())]
     directory, _, files = _read_manifest(root, snapshot_id)
     _validate_extras(directory, files)
     unknown = set(tables) - {"daily", *_TABLE_PATHS}
@@ -319,7 +328,9 @@ def load_snapshot(
             pieces = []
             for entry in entries:
                 path = _validate_file(directory, entry)
-                pieces.append(_drop_lockbox(pq.read_table(path, columns=cols), name).to_pandas())
+                pieces.append(
+                    _drop_lockbox(pq.read_table(path, columns=cols, filters=date_filters), name).to_pandas()
+                )
             result[name] = pd.concat(pieces, ignore_index=True) if pieces else pd.DataFrame()
             if not result[name].empty:
                 if isinstance(result[name]["code"].dtype, pd.CategoricalDtype):
