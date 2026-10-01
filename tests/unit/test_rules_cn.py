@@ -19,10 +19,18 @@ from q6.market.rules_cn import (
 @pytest.mark.parametrize(
     ("code", "board"),
     [
-        ("sh.600000", Board.MAIN), ("sh.601318", Board.MAIN), ("sh.603259", Board.MAIN),
-        ("sh.605499", Board.MAIN), ("sz.000001", Board.MAIN), ("sz.002594", Board.MAIN),
-        ("sz.003816", Board.MAIN), ("sz.001979", Board.MAIN), ("sz.300750", Board.CHINEXT),
-        ("sz.301269", Board.CHINEXT), ("sh.688981", Board.STAR), ("sh.689009", Board.STAR),
+        ("sh.600000", Board.MAIN),
+        ("sh.601318", Board.MAIN),
+        ("sh.603259", Board.MAIN),
+        ("sh.605499", Board.MAIN),
+        ("sz.000001", Board.MAIN),
+        ("sz.002594", Board.MAIN),
+        ("sz.003816", Board.MAIN),
+        ("sz.001979", Board.MAIN),
+        ("sz.300750", Board.CHINEXT),
+        ("sz.301269", Board.CHINEXT),
+        ("sh.688981", Board.STAR),
+        ("sh.689009", Board.STAR),
     ],
 )
 def test_board_of(code, board):

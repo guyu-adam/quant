@@ -162,4 +162,3 @@ def round_sell_qty(code: str, qty: int, sellable: int) -> int:
         # 科创板卖出：不少于 200 股（余额不足 200 股时须一次性卖出，已由上面的全部卖出覆盖）
         return qty if qty >= STAR_MIN_BUY else 0
     return qty // LOT * LOT
-
