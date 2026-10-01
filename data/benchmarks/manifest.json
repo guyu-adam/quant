@@ -1,0 +1,36 @@
+{
+  "fetched_at": "2026-10-01T13:33:17.823415+00:00",
+  "file": "index_daily.parquet",
+  "indices": {
+    "sh.000001": {
+      "end": "2026-09-30",
+      "name": "上证综指",
+      "rows": 5282,
+      "start": "2005-01-04"
+    },
+    "sh.000300": {
+      "end": "2026-09-30",
+      "name": "沪深300",
+      "rows": 5282,
+      "start": "2005-01-04"
+    },
+    "sh.000905": {
+      "end": "2026-09-30",
+      "name": "中证500",
+      "rows": 5282,
+      "start": "2005-01-04"
+    },
+    "sh.000906": {
+      "end": "2026-09-30",
+      "name": "中证800",
+      "rows": 4792,
+      "start": "2007-01-15"
+    }
+  },
+  "note": "价格指数，不含分红，会低估基准收益。",
+  "requested_end": "2026-09-30",
+  "requested_start": "2005-01-01",
+  "rows": 20638,
+  "sha256": "939694e8bb4356a928cfff58081dee2a6ffa14cfda1f5768b546df648267ff89",
+  "source": "Baostock query_history_k_data_plus; frequency=d; adjustflag=3"
+}
