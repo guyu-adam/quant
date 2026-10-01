@@ -101,13 +101,61 @@ def test_resume_fetches_only_missing_tail(tmp_path: Path) -> None:
             calls.append((start, end))
             return pd.DataFrame(rows[11:], columns=raw["fields"], dtype="string")
 
-    result = fetch_daily_many(["sh.600000"], "2024-01-01", "2024-01-31", tmp_path, Client)
+    result = fetch_daily_many(["sh.600000"], rows[0][0], "2024-01-31", tmp_path, Client)
     saved = pd.read_parquet(destination)
     assert not result
     expected_start = (pd.Timestamp(rows[10][0]) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     assert calls == [(expected_start, "2024-01-31")]
     assert len(saved) == len(rows)
     assert saved["date"].is_unique
+
+
+def test_resume_backfills_missing_head(tmp_path: Path) -> None:
+    raw = fixture("daily_sh.600000_2024-01.json")
+    rows = raw["rows"]
+    later = pd.DataFrame(rows[5:], columns=raw["fields"], dtype="string")
+    destination = tmp_path / "daily/sh.600000.parquet"
+    destination.parent.mkdir(parents=True)
+    to_typed(later).to_parquet(destination, index=False)
+    calls: list[tuple[str, str]] = []
+
+    class Client:
+        def __enter__(self) -> Client:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def daily(self, code: str, start: str, end: str) -> pd.DataFrame:
+            calls.append((start, end))
+            return pd.DataFrame(rows[:5], columns=raw["fields"], dtype="string")
+
+    result = fetch_daily_many(["sh.600000"], "2024-01-01", "2024-01-31", tmp_path, Client)
+    saved = pd.read_parquet(destination)
+    assert not result
+    assert calls == [("2024-01-01", (pd.Timestamp(rows[5][0]) - pd.Timedelta(days=1)).strftime("%Y-%m-%d"))]
+    assert len(saved) == len(rows)
+    assert saved["date"].is_unique
+
+
+def test_atomic_parquet_keyboard_interrupt_preserves_original(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "daily/sh.600000.parquet"
+    target.parent.mkdir(parents=True)
+    original = pd.DataFrame({"value": [1]})
+    original.to_parquet(target, index=False)
+    original_bytes = target.read_bytes()
+
+    def interrupt(self: pd.DataFrame, path: str, **_: object) -> None:
+        Path(path).write_bytes(b"partial parquet")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        ingest._atomic_parquet(pd.DataFrame({"value": [2]}), target)
+    assert target.read_bytes() == original_bytes
+    assert list(target.parent.iterdir()) == [target]
 
 
 def test_atomic_json_preserves_previous_file_on_replace_error(

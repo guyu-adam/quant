@@ -1,4 +1,4 @@
-"""Baostock client with raw string responses and typed conversion helpers."""
+"""Baostock 客户端、原始字符串响应及类型转换工具。"""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ class BaostockClient:
         fn = getattr(bs, fn_name)
         consecutive_failures = 0
         last_error: Exception | None = None
-        # Initial attempt plus at most four retries, with 1/2/4/8 second backoff.
+        # 首次请求后最多重试四次，退避间隔依次为 1、2、4、8 秒。
         for attempt in range(5):
             self._wait_rate_limit()
             self._last_request = time.monotonic()
