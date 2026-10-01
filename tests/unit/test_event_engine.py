@@ -41,7 +41,7 @@ class FakeFeed:
     def __init__(self, f):
         self.panel = Panel.from_frames(f)
 
-    def segments(self, start, end, warmup):
+    def segments(self, start, end, warmup, keep=None):
         yield Segment(self.panel, 0, np.ones((len(DAYS), 2), dtype=bool))
 
 
@@ -134,3 +134,28 @@ def test_same_bar_order_structurally_impossible():
     with pytest.raises(ValueError):
         match_order(Order("x", A, Side.BUY, 100, ts), b, sellable=0, cash_available=1e6, no_limit_day=False,
                     adv=1e8, sigma=0.02, cfg=MatchConfig())
+
+
+def test_delisted_holding_settled_after_n_missing_days():
+    f = frames(close_a=[10, 10, 10, 10, 10, 10, 10, 10])
+    for k in ("open", "high", "low", "close", "preclose", "volume", "amount", "tradestatus", "ret"):
+        f[k][A] = f[k][A].astype(float)
+        f[k].loc[DAYS[4]:, A] = np.nan  # 第 4 天起没有任何行情行（被吸收合并）
+    cfg = EngineConfig(delist_after=3, delist_recovery=0.5)
+    res, _ = run(f, {1: {A: 0.5}}, cfg=cfg)
+    (d,) = res.delistings
+    assert d["symbol"] == A and d["date"] == DAYS[6]  # 第 4、5、6 天缺行，第 3 天缺行时结算
+    assert d["value"] == pytest.approx(d["qty"] * 10 * 0.5)
+    assert res.daily["n_pos"].iloc[6] == 0 and res.daily["n_pos"].iloc[5] == 1
+    assert res.reasons["MISSING_ROW"] == 3
+    # 结算前按最后价估值，结算当天权益掉一半市值
+    eq = res.daily["equity"]
+    assert eq.iloc[6] == pytest.approx(eq.iloc[5] - d["qty"] * 10 * 0.5)
+
+
+def test_short_gap_is_not_delisting():
+    f = frames()
+    for k in ("close", "tradestatus"):
+        f[k].loc[DAYS[4]:DAYS[5], A] = np.nan
+    res, _ = run(f, {1: {A: 0.5}}, cfg=EngineConfig(delist_after=3))
+    assert res.delistings == [] and res.daily["n_pos"].iloc[-1] == 1
