@@ -12,9 +12,9 @@ from q6.strategy.ts_momentum import TSMomentum
 A, B, C = "sz.000001", "sh.600000", "sz.000002"
 
 
-def context(prices, *, universe=(A, B, C), trade=None, st=None, new=None):
+def context(prices, *, universe=(A, B, C), trade=None, st=None, new=None, symbols=(A, B, C)):
     dates = pd.bdate_range("2020-01-01", periods=len(prices))
-    close_hfq = pd.DataFrame(np.asarray(prices, dtype=float), index=dates, columns=[A, B, C])
+    close_hfq = pd.DataFrame(np.asarray(prices, dtype=float), index=dates, columns=symbols)
     fields = {
         "close_hfq": close_hfq,
         "close": close_hfq,
@@ -80,13 +80,39 @@ def test_nonpositive_momentum_and_missing_window_are_excluded():
     assert result == {}
 
 
+def test_max_names_keeps_largest_positive_momentum():
+    noise = [1, 1.01, 0.99, 1.02, 0.98, 1.03]
+    prices = [[10 * 1.01**i * noise[i], 20 * 1.04**i * noise[i],
+               30 * 1.02**i * noise[i]] for i in range(6)]
+    result = TSMomentum(lookback=4, skip=1, vol_window=4, every=1, cap=0.5,
+                        gross=0.8, vol_target=99, max_names=2).on_bar(context(prices))
+    assert set(result) == {B, C}
+
+
+def test_max_names_ties_use_symbol_ascending():
+    # C、B 动量完全相同，输入列顺序相反于要求的并列顺序。
+    noise = [1, 0.95, 0.98, 1.01, 1.10, 1.12]
+    tied = [10 * 1.01**i * noise[i] for i in range(6)]
+    prices = [[tied[i], tied[i], 30 * 1.005**i * noise[i]] for i in range(6)]
+    ctx = context(prices, symbols=(C, B, A))
+    result = TSMomentum(lookback=4, skip=1, vol_window=4, every=1, cap=0.5,
+                        gross=0.8, vol_target=99, max_names=2).on_bar(ctx)
+    assert set(result) == {B, C}
+
+
+@pytest.mark.parametrize("max_names", [0, -1, 1.5, True])
+def test_max_names_requires_positive_integer(max_names):
+    with pytest.raises(ValueError):
+        TSMomentum(max_names=max_names)
+
+
 class Feed:
     fields = (*ENGINE_FIELDS, "close_hfq")
 
     def __init__(self, frames):
         self.panel = Panel.from_frames(frames)
 
-    def segments(self, start, end, warmup):
+    def segments(self, start, end, warmup, keep=None):
         yield Segment(self.panel, warmup, np.ones((len(self.panel), 3), dtype=bool))
 
 

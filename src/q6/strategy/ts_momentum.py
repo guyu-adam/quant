@@ -11,7 +11,12 @@ from q6.strategy.base import BarContext, StrategyBase, StrategySpec
 
 
 class TSMomentum(StrategyBase):
-    """每隔 ``every`` 根可调用 bar 调仓，持有正时序动量股票。"""
+    """每隔 ``every`` 根可调用 bar 调仓，持有正时序动量股票。
+
+    正动量候选按动量降序截取至 ``max_names`` 只（并列按代码升序），
+    以防初版全部选入导致单票低于引擎最小成交额、最终零成交。
+    这是时序过滤后的数量截断；动量不为正的股票仍不会入选。
+    """
 
     name = "ts_momentum"
 
@@ -24,13 +29,17 @@ class TSMomentum(StrategyBase):
         cap: float = 0.05,
         gross: float = 0.95,
         vol_target: float = 0.15,
+        max_names: int = 50,
     ) -> None:
         if lookback <= skip or skip < 0 or vol_window < 2 or every < 1:
             raise ValueError("lookback > skip >= 0, vol_window >= 2, and every >= 1 are required")
         if not 0 < cap <= gross <= 1 or vol_target <= 0:
             raise ValueError("require 0 < cap <= gross <= 1 and vol_target > 0")
+        if not isinstance(max_names, int) or isinstance(max_names, bool) or max_names < 1:
+            raise ValueError("max_names must be an integer >= 1")
         self.lookback, self.skip, self.vol_window = lookback, skip, vol_window
         self.every, self.cap, self.gross, self.vol_target = every, cap, gross, vol_target
+        self.max_names = max_names
         self._bars = 0
 
     @property
@@ -42,6 +51,7 @@ class TSMomentum(StrategyBase):
                 "lookback": self.lookback, "skip": self.skip, "vol_window": self.vol_window,
                 "every": self.every, "cap": self.cap, "gross": self.gross,
                 "vol_target": self.vol_target,
+                "max_names": self.max_names,
             },
         )
 
@@ -78,6 +88,12 @@ class TSMomentum(StrategyBase):
         if not len(ids):
             return {}
 
+        symbols = view.symbols
+        ids = np.asarray(
+            sorted(ids, key=lambda j: (-momentum[j], symbols[j]))[:self.max_names],
+            dtype=int,
+        )
+
         inv = 1.0 / sigma[ids]
         weights = inv / inv.sum() * self.gross
         weights = np.minimum(weights, self.cap)
@@ -89,4 +105,4 @@ class TSMomentum(StrategyBase):
             else 1.0
         )
         weights *= scale
-        return {view.symbols[j]: float(w) for j, w in zip(ids, weights, strict=True) if w > 0}
+        return {symbols[j]: float(w) for j, w in zip(ids, weights, strict=True) if w > 0}
