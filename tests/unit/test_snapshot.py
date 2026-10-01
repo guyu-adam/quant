@@ -133,6 +133,21 @@ def test_year_range_reads_only_requested_partitions(tmp_path: Path, monkeypatch:
     assert set(loaded["daily"]["date"].dt.year) == {2010, 2011, 2012}
 
 
+def test_columns_prunes_daily_but_keeps_keys_and_still_verifies_hash(tmp_path: Path) -> None:
+    snapshot_id = write_snapshot(_tables(), tmp_path, asof="2012-12-31", sources={}, code_version="test")
+    full = load_snapshot(tmp_path, snapshot_id)["daily"]
+    pruned = load_snapshot(tmp_path, snapshot_id, columns=("close",))["daily"]
+    assert list(pruned.columns) == ["date", "code", "close"]
+    pd.testing.assert_frame_equal(pruned, full[["date", "code", "close"]])
+
+    path = tmp_path / snapshot_id / "daily" / "year=2010.parquet"
+    data = bytearray(path.read_bytes())
+    data[len(data) // 2] ^= 1
+    path.write_bytes(bytes(data))
+    with pytest.raises(SnapshotIntegrityError):
+        load_snapshot(tmp_path, snapshot_id, columns=("close",))
+
+
 def test_universe_monthly_round_trip_keeps_string_index_and_normalizes_update_date(
     tmp_path: Path,
 ) -> None:

@@ -2,7 +2,8 @@
 
 需要环境变量 Q6_SNAPSHOT（快照 ID；可选 Q6_SNAPSHOT_ROOT，默认 data/snapshots）。
 未设置时 skip——verify 脚本的第 6 步会显式打印 SKIP，不会静默。
-只读 2015–2016 两年：覆盖 2015 股灾、千股停牌、熔断，缺失与停牌最密集，最容易暴露 bfill 类问题。
+只取 2015-05 ~ 2016-02：覆盖 2015 股灾、千股停牌、2016-01 熔断，缺失与停牌最密集，最容易暴露 bfill 类问题。
+窗口和列都收窄是为了守住进程 RSS ≤512MB（两年全列读入时峰值 845MB）。
 """
 
 import os
@@ -24,7 +25,9 @@ def real_data():
     from q6.data.snapshot import load_snapshot
 
     root = Path(os.environ.get("Q6_SNAPSHOT_ROOT", "data/snapshots"))
-    daily = load_snapshot(root, SNAP, ("daily",), years=(2015, 2016))["daily"]
+    daily = load_snapshot(root, SNAP, ("daily",), years=(2015, 2016),
+                          columns=("close_hfq", "volume", "tradable"))["daily"]
+    daily = daily[(daily["date"] >= "2015-05-01") & (daily["date"] <= "2016-02-29")]
     # 停牌行的价格是占位值：信号输入只用可交易行，其余置 NaN（与引擎口径一致）
     daily = daily.assign(close_sig=daily["close_hfq"].where(daily["tradable"]),
                          vol_sig=daily["volume"].astype("float64").where(daily["tradable"]))
@@ -35,7 +38,7 @@ def real_data():
 
 def test_real_shape(real_data):
     c = real_data["close"]
-    assert len(c) > 450 and c.shape[1] > 800
+    assert len(c) > 190 and c.shape[1] > 800
     assert c.isna().to_numpy().mean() > 0.01  # 真实数据确实有停牌 / 未上市缺失
 
 

@@ -245,8 +245,9 @@ def load_snapshot(
     snapshot_id: str,
     tables: tuple[str, ...] = ("daily",),
     years: tuple[int, int] | None = None,
+    columns: tuple[str, ...] | None = None,
 ) -> dict[str, pd.DataFrame]:
-    """校验并读取指定表；daily 可按闭区间年份筛选。"""
+    """校验并读取指定表；daily 可按闭区间年份筛选、按列裁剪（date / code 总会读入）。"""
     directory, _, files = _read_manifest(root, snapshot_id)
     _validate_extras(directory, files)
     unknown = set(tables) - {"daily", *_TABLE_PATHS}
@@ -262,10 +263,11 @@ def load_snapshot(
                     for item in entries
                     if years[0] <= int(Path(item["path"]).stem.split("=")[1]) <= years[1]
                 ]
+            cols = None if columns is None else list(dict.fromkeys(("date", "code", *columns)))
             pieces = []
             for entry in entries:
                 path = _validate_file(directory, entry)
-                pieces.append(pq.read_table(path).to_pandas())
+                pieces.append(pq.read_table(path, columns=cols).to_pandas())
             result[name] = pd.concat(pieces, ignore_index=True) if pieces else pd.DataFrame()
             if not result[name].empty:
                 if isinstance(result[name]["code"].dtype, pd.CategoricalDtype):
