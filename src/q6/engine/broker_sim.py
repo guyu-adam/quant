@@ -111,6 +111,24 @@ class BrokerSim:
         self.state = AccountSnapshot(ts, st.cash, positions, st.realized_pnl, st.fees_paid)
         return self.state
 
+    def settle_delisted(self, ts: datetime, symbol: str, recovery: float) -> float:
+        """退市 / 被吸收合并后不再有行情：按最后盯市价 × recovery 把整笔持仓折成现金并移除，返回折现金额。
+
+        recovery=1 对换股吸收合并大致公允（换股价通常不低于停牌前价格）；对破产退市偏乐观（退市整理期的
+        下跌已在行情里，但摘牌后的三板价值远低于最后价）。引擎把每一笔都记进 BacktestResult.delistings。
+        """
+        if not (0.0 <= recovery <= 1.0):
+            raise ValueError(f"recovery 必须在 [0, 1]，得到 {recovery}")
+        st = self.state
+        p = st.positions.get(symbol)
+        if p is None:
+            raise BrokerError(f"{symbol} 无持仓，不能做退市结算")
+        value = p.qty * p.last_price * recovery
+        positions = {k: v for k, v in st.positions.items() if k != symbol}
+        realized = st.realized_pnl + value - p.qty * p.avg_cost
+        self.state = AccountSnapshot(ts, st.cash + value, positions, realized, st.fees_paid)
+        return value
+
     # ------------------------------------------------------------ 查询
     def sellable(self, symbol: str) -> int:
         p = self.state.positions.get(symbol)

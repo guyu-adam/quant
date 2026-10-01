@@ -12,6 +12,10 @@
 
 目标权重 → 订单：目标市值 = 权重 × 当日收盘权益；差额 / 当日收盘价（不复权）= 股数，手数取整交给撮合。
 差额绝对值小于 min_trade_value 的不交易（避免碎单）。权重为 0 的标的清仓。
+退市：持仓标的连续 delist_after 个交易日没有任何行情行（停牌日数据源仍有 tradestatus=0 的行，所以"没有行"
+意味着已不在交易所挂牌——P2-07 实测全部是换股吸收合并），在第 delist_after 天收盘按最后盯市价 × delist_recovery
+折成现金，逐笔记进 BacktestResult.delistings。之前的缺行日照常按最后价估值，计数在 reasons["MISSING_ROW"]。
+
 冲击模型的 adv（近 20 日平均成交额）和 sigma（近 20 日收益标准差）用决策日 ≤t 的数据算好，随订单带到 t+1。
 """
 
@@ -26,6 +30,7 @@ from itertools import count
 import numpy as np
 import pandas as pd
 
+from q6.core.clock import BacktestClock
 from q6.core.types import Bar, Fill, Order, Side, validate_target_weights
 from q6.engine.broker_sim import BrokerSim
 from q6.engine.feed import SnapshotFeed
@@ -44,6 +49,8 @@ class EngineConfig:
     min_trade_value: float = 2_000.0
     adv_window: int = 20
     sigma_window: int = 20
+    delist_after: int = 20
+    delist_recovery: float = 1.0
 
 
 @dataclass
@@ -58,8 +65,9 @@ class BacktestResult:
     # daily：index=date；列 equity, cash, market_value, n_pos, buy_value, sell_value, fees, cost_slip_imp
     daily: pd.DataFrame
     fills: list[Fill]
-    reasons: dict[str, int]  # 未成交 / 部分成交原因计数；STALE_HOLDING = 持有已无数据的标的的天数
+    reasons: dict[str, int]  # 未成交 / 部分成交原因计数；MISSING_ROW = 持仓标的当日没有行情行的天数
     initial_cash: float
+    delistings: list[dict] = field(default_factory=list)  # date, symbol, qty, last_price, value, cost
 
     @property
     def returns(self) -> pd.Series:
@@ -100,13 +108,23 @@ class EventEngine:
         records: list[dict] = []
         fills: list[Fill] = []
         reasons: dict[str, int] = {}
+        absent: dict[str, int] = {}  # 持仓标的连续无行情行的天数
+        delistings: list[dict] = []
+        clock = BacktestClock()  # 跨段的日期必须严格前进，段衔接写错（重复 / 倒序）会在这里报错
 
-        for seg in feed.segments(start, end, spec.warmup):
+        def keep() -> set[str]:
+            held = set(broker.state.positions) if broker is not None else set()
+            return held | {x.order.symbol for x in pending}
+
+        for seg in feed.segments(start, end, spec.warmup, keep=keep):
             p = seg.panel
             sym_idx = {s: j for j, s in enumerate(p.symbols)}
             for i in range(seg.first, len(p)):
                 day = pd.Timestamp(p.date_at(i))
                 ts = _ts(day)
+                if records and day <= records[-1]["date"]:
+                    raise RuntimeError(f"交易日重复或倒序：{day.date()} 不晚于 {records[-1]['date'].date()}")
+                clock.advance(ts)
                 if broker is None:
                     broker = BrokerSim(cfg.initial_cash, ts)
                 rows = {f: p.row(f, i) for f in _ROW_FIELDS}
@@ -154,12 +172,21 @@ class EventEngine:
                           if (j := sym_idx.get(s)) is not None and rows["tradestatus"][j] == 1
                           and math.isfinite(rows["close"][j])}
                 broker.mark(ts, closes)
-                for s in broker.state.positions:
+                for s in list(broker.state.positions):
                     j = sym_idx.get(s)
-                    if j is None:
-                        # 持仓标的在本段已无任何数据（退市）：仍按最后价格估值，偏乐观——计数暴露出来
-                        reasons["STALE_HOLDING"] = reasons.get("STALE_HOLDING", 0) + 1
-                    elif math.isfinite(rows["adj_factor"][j]):
+                    if j is None or not math.isfinite(rows["tradestatus"][j]):
+                        reasons["MISSING_ROW"] = reasons.get("MISSING_ROW", 0) + 1
+                        absent[s] = absent.get(s, 0) + 1
+                        if absent[s] >= cfg.delist_after:
+                            pos = broker.state.positions[s]
+                            value = broker.settle_delisted(ts, s, cfg.delist_recovery)
+                            delistings.append(dict(date=day, symbol=s, qty=pos.qty, last_price=pos.last_price,
+                                                   value=value, cost=pos.qty * pos.avg_cost))
+                            absent.pop(s)
+                            last_adj.pop(s, None)
+                        continue
+                    absent.pop(s, None)
+                    if math.isfinite(rows["adj_factor"][j]):
                         last_adj[s] = rows["adj_factor"][j]
 
                 # 4. 决策（预热不足时不调用）
@@ -183,7 +210,7 @@ class EventEngine:
             seg = p = view = rows = None  # noqa: F841
 
         daily = pd.DataFrame(records).set_index("date")
-        return BacktestResult(daily, fills, reasons, cfg.initial_cash)
+        return BacktestResult(daily, fills, reasons, cfg.initial_cash, delistings)
 
     def _orders(self, target, broker: BrokerSim, p, i: int, rows, sym_idx, ts, ids) -> list[_Pending]:
         cfg = self.cfg

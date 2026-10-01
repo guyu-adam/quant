@@ -286,8 +286,9 @@ def load_snapshot(
     years: tuple[int, int] | None = None,
     columns: tuple[str, ...] | None = None,
     date_range: tuple[str, str] | None = None,
+    codes: Iterable[str] | None = None,
 ) -> dict[str, pd.DataFrame]:
-    """校验并读取指定表；daily 可按闭区间年份筛选、按列裁剪（date / code 总会读入）。
+    """校验并读取指定表；daily 可按闭区间年份筛选、按列裁剪（date / code 总会读入）、按代码筛选。
 
     锁箱期（data/lockbox.py）未解锁时：
     - years 显式超出锁箱起点所在年 → LockboxError；
@@ -305,6 +306,10 @@ def load_snapshot(
         # 显式要锁箱期数据 → 报错，不静默返回空
         lockbox.check_dates([start, end], "load_snapshot(date_range)")
         date_filters = [("date", ">=", start.to_pydatetime()), ("date", "<=", end.to_pydatetime())]
+    if codes is not None:
+        if "daily" not in tables:
+            raise ValueError("codes 仅适用于 daily 表")
+        date_filters = [*(date_filters or []), ("code", "in", sorted(set(map(str, codes))))]
     directory, _, files = _read_manifest(root, snapshot_id)
     _validate_extras(directory, files)
     unknown = set(tables) - {"daily", *_TABLE_PATHS}
