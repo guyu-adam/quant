@@ -1,0 +1,139 @@
+
+### AKSHARE
+akshare_version=1.19.1
+
+### daily_unadjusted
+rows=242 columns=['日期', '股票代码', '开盘', '收盘', '最高', '最低', '成交量', '成交额', '振幅', '涨跌幅', '涨跌额', '换手率']
+        日期   股票代码   开盘   收盘   最高   最低    成交量         成交额   振幅   涨跌幅   涨跌额  换手率
+2024-01-02 600000 6.63 6.60 6.65 6.60 220667 146066304.0 0.76 -0.30 -0.02 0.08
+2024-01-03 600000 6.59 6.64 6.65 6.59 182037 120639706.0 0.91  0.61  0.04 0.06
+2024-01-04 600000 6.64 6.62 6.67 6.55 288860 190580610.0 1.81 -0.30 -0.02 0.10
+
+### adjust_factor_search
+candidate_apis=['macro_china_passenger_load_factor', 'macro_usa_factory_orders', 'stock_zh_a_cdr_daily', 'stock_zh_a_daily', 'stock_zh_ah_daily']
+stock_zh_a_daily: rows=33 columns=['date', 'qfq_factor'] date_range=1900-01-01 00:00:00..2026-06-26 00:00:00
+      date         qfq_factor
+2026-06-26 1.0000000000000000
+2025-12-19 1.0236675985693000
+2025-06-26 1.0410970621031000
+
+### 5m_history
+ERROR ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&ut=7eea3edcaed734bea9cbfc24409ed989&klt=5&fqt=0&secid=1.600000&beg=0&end=20500000 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 540, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+http.client.RemoteDisconnected: Remote end closed connection without response
+
+The above exception was the direct cause of the following exception:
+
+urllib3.exceptions.ProxyError: ('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response'))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 847, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&ut=7eea3edcaed734bea9cbfc24409ed989&klt=5&fqt=0&secid=1.600000&beg=0&end=20500000 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 13, in emit
+    value = fn()
+            ^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 95, in run
+    df = call()
+         ^^^^^^
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&ut=7eea3edcaed734bea9cbfc24409ed989&klt=5&fqt=0&secid=1.600000&beg=0&end=20500000 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))
+
+### constituents_csindex_000300
+signature=(symbol: str = '000300') -> pandas.DataFrame rows=300 columns=['日期', '指数代码', '指数名称', '指数英文名称', '成分券代码', '成分券名称', '成分券英文名称', '交易所', '交易所英文名称']
+        日期   指数代码  指数名称  指数英文名称  成分券代码 成分券名称                成分券英文名称     交易所                 交易所英文名称
+2026-09-30 000300 沪深300 CSI 300 000001  平安银行 Ping An Bank Co., Ltd. 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000300 沪深300 CSI 300 000002   万科A     China Vanke Co Ltd 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000300 沪深300 CSI 300 000063  中兴通讯        ZTE Corporation 深圳证券交易所 Shenzhen Stock Exchange
+
+### constituents_csindex_000905
+signature=(symbol: str = '000300') -> pandas.DataFrame rows=500 columns=['日期', '指数代码', '指数名称', '指数英文名称', '成分券代码', '成分券名称', '成分券英文名称', '交易所', '交易所英文名称']
+        日期   指数代码  指数名称  指数英文名称  成分券代码 成分券名称                             成分券英文名称     交易所                 交易所英文名称
+2026-09-30 000905 中证500 CSI 500 000009  中国宝安          China Baoan Group Co.,Ltd. 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000905 中证500 CSI 500 000021   深科技 Shenzhen Kaifa Technology Co., Ltd. 深圳证券交易所 Shenzhen Stock Exchange
+2026-09-30 000905 中证500 CSI 500 000027  深圳能源        Shenzhen Energy Group Co Ltd 深圳证券交易所 Shenzhen Stock Exchange
+
+### stock_list
+  0%|          | 0/18 [00:00<?, ?it/s]  6%|▌         | 1/18 [00:02<00:43,  2.54s/it] 11%|█         | 2/18 [00:05<00:40,  2.54s/it] 17%|█▋        | 3/18 [00:14<01:25,  5.73s/it] 22%|██▏       | 4/18 [00:16<00:59,  4.27s/it] 28%|██▊       | 5/18 [00:18<00:44,  3.42s/it] 33%|███▎      | 6/18 [00:20<00:36,  3.02s/it] 39%|███▉      | 7/18 [00:23<00:31,  2.91s/it] 44%|████▍     | 8/18 [00:25<00:27,  2.71s/it]                                              Traceback (most recent call last):
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 151, in <module>
+    if a.provider in ("akshare","all"): emit("AKSHARE", akshare_probe)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 13, in emit
+    value = fn()
+            ^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 128, in akshare_probe
+    frame("stock_list", lambda: ak.stock_info_a_code_name())
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 106, in frame
+    emit(title, run)
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 13, in emit
+    value = fn()
+            ^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 95, in run
+    df = call()
+         ^^^^^^
+  File "/Users/guyu/Projects/agents/bob/wt/P1-05/scripts/probe/datasource_probe.py", line 128, in <lambda>
+    frame("stock_list", lambda: ak.stock_info_a_code_name())
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/akshare/stock/stock_info.py", line 460, in stock_info_a_code_name
+    stock_bse = stock_info_bj_name_code()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/akshare/stock/stock_info.py", line 213, in stock_info_bj_name_code
+    r = requests.post(url, data=payload, headers=headers)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/api.py", line 134, in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/api.py", line 71, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/sessions.py", line 651, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/sessions.py", line 784, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connectionpool.py", line 540, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.cache/uv/archive-v0/KS3ItCuxOAGPHAVV/lib/python3.12/site-packages/urllib3/connection.py", line 638, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.local/share/uv/python/cpython-3.12.13-macos-x86_64-none/lib/python3.12/http/client.py", line 1450, in getresponse
+    response.begin()
+  File "/Users/guyu/.local/share/uv/python/cpython-3.12.13-macos-x86_64-none/lib/python3.12/http/client.py", line 336, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.local/share/uv/python/cpython-3.12.13-macos-x86_64-none/lib/python3.12/http/client.py", line 297, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.local/share/uv/python/cpython-3.12.13-macos-x86_64-none/lib/python3.12/socket.py", line 720, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.local/share/uv/python/cpython-3.12.13-macos-x86_64-none/lib/python3.12/ssl.py", line 1263, in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guyu/.local/share/uv/python/cpython-3.12.13-macos-x86_64-none/lib/python3.12/ssl.py", line 1115, in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
