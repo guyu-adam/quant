@@ -279,3 +279,102 @@ EXIT=1
 - Win 上依然没有快照，所以 Win 端只能证明"验收模式缺快照会失败"，**证明不了真实快照测试在 Win 上能通过**。要在 Win 上做完整验收，需要先把 Release 里的快照拉到 Win（529MB，在 4G 上限以内），这件事等 Adam 决定。
 - 开发模式（不设 `Q6_REQUIRE_SNAPSHOT`）仍然允许 skip，这是有意保留的，方便没有快照的环境日常开发。区分靠结尾那行文字，所以验收必须看到 `acceptance mode`。
 - 未开工 P2，等 Adam 复验。
+
+---
+
+## P2：市场规则 + 双引擎 + 策略库 + 评估（进行中，Cen）
+
+### 任务状态（随做随更）
+
+| ID | 内容 | 谁 | 状态 | 提交 |
+|---|---|---|---|---|
+| P2-20a | 锁箱期硬拦截（加载层 + Panel 层，解锁必须登记），P2 准入门槛 | Cen | 完成，Adam 已认可 | `abffa03` |
+| P2-01 | 费用历史查证 | Bob | 完成（P1 期间） | `590fdf0` |
+| P2-02 | 费率模块 | Bob | 合并 | `8aca977` |
+| P2-04 | 冲击 / 滑点 | Bob | 合并 | `7d5e122` |
+| P2-03 | A 股规则：板块、涨跌停价（整数分）、手数、新股无限制天数 | Cen | 代码 + 单测完成；**真实涨停价逐笔比对（DoD 的 50 个样本）未做** | `edb8f92` |
+| P2-12 | 因子算子 25 个 | Bob | 合并。审查实测 rolling.apply 类偏慢（ts_rank 1250×800 要 9.2s），向量化放进 P2-13 | `fa3d2a6` |
+| P2-23 | 实验登记簿（哈希链 + 跨进程锁） | Bob | 合并 + Cen 修 2 处（见下） | `8b4f80c` `83d2857` `e4579e4` |
+| P2-19 | 指标 + IC | Bob | 已派单 | — |
+| P2-13 | 因子库 30 个 + 中性化 + 慢算子向量化 | Bob | 已派单 | — |
+
+P2-23 审查时 Cen 修的两处：
+1. `git_dirty`：`registry/runs.jsonl` 本身入库，不排除的话第一条记录之后永远是 dirty，字段失去意义。改为 `git status --porcelain -- . ':!registry'`，加了回归测试（`test_git_dirty_ignores_registry_itself`）。
+2. **Windows 专有 bug（Win 验收跑出来的，Mac 不复现）**：一个进程正在删除锁文件时，另一个进程 `O_EXCL` 打开拿到的是 `PermissionError`（delete-pending）而不是 `FileExistsError`，没被重试循环接住，子进程直接崩溃。改为两种都按"锁被占用"重试；真的没权限时 10 秒后 `TimeoutError`，不静默。
+
+P2-23 的已知局限：哈希链能发现中间行被改或被删，**发现不了"删掉末尾几行"**——这一点靠 `runs.jsonl` 进 git，删除会出现在 diff 里。进程在持锁期间被杀会留下锁文件，之后所有写入 10 秒超时报错（显式失败，需人工删锁）。
+
+P2-03 的已知局限：规则表只查证到 2024-07-01 之前，之后的日期 `limit_pct` 直接抛 `NotImplementedError`，P4 前补齐；
+主板首日 +44%/−36%（相对发行价）约束、股改复牌首日、退市整理期不建模（引擎靠"上市未满 N 日不交易"和隔离表排除）。
+
+另：快照里**没有**市值、行业、财务数据。P2-13 的规模因子用 `amount / (turn/100)` 近似流通市值；价值 / 质量因子无法实现，行业中性化只做了接口（合成数据单测），没有行业数据。是否补抓行业（baostock 只有当前分类，有后视偏差）待定。
+
+### Win 端用真实快照跑验收模式（补 P1 留下的缺口）
+
+P1-16c 派给 Bob 时 Win 连 GitHub 超时，只下到 1 个文件；他的下载脚本还有一个逻辑错误：把 Release 的 `manifest.json` 下载到 git 跟踪的同一路径，覆盖之后再"比对"等于自己比自己。
+Cen 重写脚本 `D:\quant6\fetch-snapshot.ps1`（Release 的 manifest 单独存到 `D:\quant6\manifest.release.json`，每个文件同时核对字节数和 Release API 给出的 SHA256），并加了 `.gitattributes`（`961e8cb`），让 Win checkout 出来的 manifest 不被转成 CRLF，与 Release 逐字节一致。
+
+下载（Win 直连 GitHub，无代理）：
+
+```
+=== UPDATE REPO ===
+961e8cb chore(v6): 快照 manifest 禁止换行转换，Win checkout 与 Release 逐字节一致
+=== DOWNLOAD ===
+ASSET_COUNT 26
+calendar.parquet             size=     37940 match=True sha_match=True
+daily_year.2005.parquet      size=  11281251 match=True sha_match=True
+...（2006–2025 共 20 行，全部 match=True sha_match=True）
+daily_year.2026.parquet      size=  24509810 match=True sha_match=True
+manifest.json                size=      5156 match=True sha_match=True
+quarantine.parquet           size=      1869 match=True sha_match=True
+universe_monthly.parquet     size=     78680 match=True sha_match=True
+DOWNLOAD_SECONDS 80.9
+=== MANIFEST: git-tracked vs Release ===
+release=e13d5871d974ea241a1d81c577c2c2a3bce51c1338432f2e04aa4fa29ec1bc4d
+tracked=e13d5871d974ea241a1d81c577c2c2a3bce51c1338432f2e04aa4fa29ec1bc4d
+identical=True
+```
+
+第一次在 `961e8cb` 上跑验收模式：**第 4 步失败**，就是上面 P2-23 的 Windows 锁 bug：
+
+```
+FAILED tests/unit/test_registry.py::test_multiprocess_spawn_writes_complete_chain
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\zhang\\AppData\\Local\\Temp\\pytest-of-zhang\\pytest-28\\test_multiprocess_spawn_writes0\\runs.jsonl.lock'
+1 failed, 208 passed in 14.71s
+FAILED at step 4
+```
+
+修复（`e4579e4`）后 Win 仓库 `git reset --hard origin/rewrite/v6` 到 `e4579e4`，再跑三遍（`D:\quant6\run-verify.ps1`，日志 `D:\quant6\verify-{A,B,C}.log`）：
+
+```
+##### A: acceptance, Q6_SNAPSHOT = absolute dir
+EXIT=0
+##### B: acceptance, Q6_SNAPSHOT = bare ID
+EXIT=0
+##### C: acceptance, Q6_SNAPSHOT unset (must fail)
+EXIT=1
+```
+
+A（快照目录绝对路径）日志摘录：
+
+```
+== [4/6] uv run pytest tests/unit tests/property
+209 passed in 16.50s
+PEAK_RSS 311.4 MiB (limit 512)
+== [5/6] uv run pytest tests/lookahead
+45 passed in 6.62s
+PEAK_RSS 238.7 MiB (limit 512)
+== [6/6] snapshot validation
+snapshot D:\quant6\repo\data\snapshots\6252e931a86bda15 OK
+PEAK_RSS 84.3 MiB (limit 512)
+ALL CHECKS PASSED (acceptance mode: real snapshot required)
+```
+
+B（裸 ID）：`209 passed in 16.33s` / `45 passed in 6.59s`（PEAK_RSS 239.7 MiB）/ `snapshot 6252e931a86bda15 OK` / `ALL CHECKS PASSED (acceptance mode: real snapshot required)`。0 skipped。
+
+C（验收模式、不给快照）：第 5 步 `28 passed, 17 errors`，17 个 error 全部是真实快照测试（test_real_snapshot 11 个 + test_lockbox_real 6 个），原因 `Q6_REQUIRE_SNAPSHOT=1 但 Q6_SNAPSHOT 未设置`，`FAILED at step 5`。
+
+说明：日志第 1 步出现 `NativeCommandError` 字样，是 PS 5.1 在 `*>` 重定向时把 uv 写到 stderr 的 `Checked 66 packages in 1ms` 包装成了错误记录，该步 0.027s 正常结束，不是失败。
+`D:\quant6` 总体积 1,134,260,033 字节（约 1.06 GiB，含 `.venv` 和快照），≤4GB。快照和仓库保留在 Win 上，P3 使用。
+
+**结论：P1 遗留的"Win 端证明不了真数据测试"这一缺口已补上。**
