@@ -106,7 +106,9 @@ def record_run(*, kind: str, strategy: str, cfg: Config | None, snapshot_id: str
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
             os.close(fd)
             break
-        except FileExistsError as exc:
+        # Windows：锁文件正被另一进程删除（delete-pending）时，O_EXCL 打开报 PermissionError 而不是
+        # FileExistsError，同样视为"锁被占用"。真的没有权限时 10 秒后以 TimeoutError 失败，不会静默。
+        except (FileExistsError, PermissionError) as exc:
             if time.monotonic() >= deadline:
                 raise TimeoutError(f"timed out acquiring {lock_path}") from exc
             time.sleep(LOCK_RETRY_S)
