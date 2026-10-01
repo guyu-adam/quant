@@ -73,6 +73,36 @@ class Panel:
         return cls(first.index, first.columns,
                    {k: v.to_numpy(dtype=np.float64) for k, v in frames.items()}, field_lag)
 
+    @classmethod
+    def from_long(
+        cls,
+        df: pd.DataFrame,
+        fields: Iterable[str],
+        *,
+        date_col: str = "date",
+        code_col: str = "code",
+        dtype=np.float64,
+        field_lag: Mapping[str, int] | None = None,
+    ) -> Panel:
+        """快照长表（每行一个 股票×日期）→ 面板。
+
+        缺行（未上市 / 已退市 / 数据源缺）填 NaN；bool 字段转成 0/1 浮点，缺行同样是 NaN，
+        由使用方决定 NaN 的含义（例如 tradable 为 NaN 视为不可交易）。
+        """
+        fields = list(fields)
+        if df.duplicated([date_col, code_col]).any():
+            raise ValueError("长表存在重复的 (date, code)")
+        dates = pd.DatetimeIndex(pd.to_datetime(df[date_col]).unique()).sort_values()
+        codes = pd.Index(df[code_col].astype(str).unique()).sort_values()
+        ri = dates.get_indexer(pd.to_datetime(df[date_col]))
+        ci = codes.get_indexer(df[code_col].astype(str))
+        arrays = {}
+        for f in fields:
+            a = np.full((len(dates), len(codes)), np.nan, dtype=dtype)
+            a[ri, ci] = df[f].to_numpy(dtype=dtype, na_value=np.nan)
+            arrays[f] = a
+        return cls(dates, codes, arrays, field_lag)
+
     def __len__(self) -> int:
         return len(self._dates)
 

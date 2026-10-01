@@ -99,3 +99,21 @@ def test_iter_views_and_index_of():
     assert p.index_of(pd.Timestamp(p.date_at(4)) + pd.Timedelta(hours=5)) == 4
     with pytest.raises(KeyError):
         p.index_of("1999-01-01")
+
+
+def test_from_long_roundtrip():
+    rng = np.random.default_rng(0)
+    rows = []
+    for d in pd.bdate_range("2020-01-01", periods=30):
+        for c in ("sh.600000", "sz.000001", "sz.300750"):
+            if rng.random() < 0.8:  # 随机缺行
+                rows.append({"date": d, "code": c, "close": rng.normal(10),
+                             "tradable": bool(rng.random() < 0.9)})
+    df = pd.DataFrame(rows).sample(frac=1, random_state=1)  # 打乱行序
+    p = Panel.from_long(df, ["close", "tradable"])
+    wide = df.pivot(index="date", columns="code", values="close").reindex(columns=list(p.symbols))
+    np.testing.assert_array_equal(p.view(len(p) - 1).window("close"), wide.to_numpy())
+    t = p.view(len(p) - 1).window("tradable")
+    assert set(np.unique(t[~np.isnan(t)])) <= {0.0, 1.0}
+    with pytest.raises(ValueError):
+        Panel.from_long(pd.concat([df, df.head(1)]), ["close"])
