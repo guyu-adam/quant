@@ -6,11 +6,13 @@
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import json
 import os
 import shutil
 import tempfile
+from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -39,13 +41,18 @@ def _normalize(frame: pd.DataFrame, table: str) -> pd.DataFrame:
         if name in {"date", "month_end", "update_date"}:
             result[name] = pd.to_datetime(result[name]).astype("datetime64[ns]")
         elif name == "code":
-            result[name] = result[name].astype(str)
+            if isinstance(result[name].dtype, pd.CategoricalDtype):
+                categories = sorted(result[name].cat.categories.astype(str))
+                result[name] = result[name].cat.set_categories(categories)
+            else:
+                result[name] = result[name].astype(str)
         elif name in _BOOL_COLUMNS or pd.api.types.is_bool_dtype(result[name].dtype):
             result[name] = result[name].astype(bool)
         elif name in _INT8_COLUMNS:
             result[name] = pd.to_numeric(result[name]).astype("int8")
         elif name in _INT64_COLUMNS:
-            result[name] = pd.to_numeric(result[name]).astype("int64")
+            volume = pd.to_numeric(result[name])
+            result[name] = volume.astype("Int64" if volume.isna().any() else "int64")
         elif name == "listed_days":
             result[name] = pd.to_numeric(result[name]).astype("int32")
         elif name == "index":
@@ -82,7 +89,12 @@ def _write_parquet(frame: pd.DataFrame, path: Path) -> None:
 
 
 def write_snapshot(
-    tables: dict[str, pd.DataFrame], root: Path, *, asof: str, sources: dict, code_version: str
+    tables: dict[str, pd.DataFrame | Iterable[tuple[int, pd.DataFrame | str | Path]]],
+    root: Path,
+    *,
+    asof: str,
+    sources: dict,
+    code_version: str,
 ) -> str:
     """规范化表格并原子写入一个由文件内容决定 ID 的快照。"""
     if "daily" not in tables:
@@ -96,24 +108,55 @@ def write_snapshot(
     try:
         files: list[dict] = []
         for name in sorted(tables):
-            frame = _normalize(tables[name], name)
             if name == "daily":
-                if "date" not in frame:
-                    raise ValueError("daily 缺少 date 列")
-                for year, group in frame.groupby(frame["date"].dt.year, sort=True):
+                daily_table = tables[name]
+                if isinstance(daily_table, pd.DataFrame):
+                    frame = _normalize(daily_table, name)
+                    if "date" not in frame:
+                        raise ValueError("daily 缺少 date 列")
+                    yearly: Iterator[tuple[int, pd.DataFrame]] = iter(
+                        (int(year), group) for year, group in frame.groupby(frame["date"].dt.year, sort=True)
+                    )
+                else:
+                    yearly = iter(daily_table)
+                previous_year: int | None = None
+                for year, part in yearly:
+                    if previous_year is not None and year <= previous_year:
+                        raise ValueError("daily 年分区必须按年份严格升序")
+                    previous_year = year
                     rel = f"daily/year={int(year)}.parquet"
                     target = temp / rel
                     target.parent.mkdir(parents=True, exist_ok=True)
-                    _write_parquet(group.reset_index(drop=True), target)
+                    if isinstance(part, (str, Path)):
+                        source = Path(part)
+                        metadata = pq.ParquetFile(source).metadata
+                        if "date" not in pq.ParquetFile(source).schema_arrow.names:
+                            raise ValueError(f"daily 年分区 {year} 缺少 date 列")
+                        shutil.copyfile(source, target)
+                        row_count = metadata.num_rows
+                    else:
+                        group = _normalize(part, name)
+                        if "date" not in group or (
+                            not group.empty and not group["date"].dt.year.eq(year).all()
+                        ):
+                            raise ValueError(f"daily 年分区 {year} 日期缺失或年份不匹配")
+                        _write_parquet(group.reset_index(drop=True), target)
+                        row_count = len(group)
                     files.append(
                         {
                             "path": rel,
                             "sha256": _hash(target),
-                            "rows": len(group),
+                            "rows": row_count,
                             "bytes": target.stat().st_size,
                         }
                     )
+                    if not isinstance(part, (str, Path)):
+                        del group
+                    del part
+                    gc.collect()
+                    pa.default_memory_pool().release_unused()
             else:
+                frame = _normalize(tables[name], name)
                 rel = _TABLE_PATHS[name]
                 target = temp / rel
                 _write_parquet(frame, target)
@@ -225,6 +268,8 @@ def load_snapshot(
                 pieces.append(pq.read_table(path).to_pandas())
             result[name] = pd.concat(pieces, ignore_index=True) if pieces else pd.DataFrame()
             if not result[name].empty:
+                if isinstance(result[name]["code"].dtype, pd.CategoricalDtype):
+                    result[name]["code"] = result[name]["code"].astype(str)
                 result[name] = (
                     result[name].sort_values(["date", "code"], kind="mergesort").reset_index(drop=True)
                 )

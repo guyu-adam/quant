@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -55,13 +56,19 @@ def _atomic_parquet(frame: pd.DataFrame, path: Path) -> None:
 
 
 def fetch_daily_many(
-    codes: list[str], start: str, end: str, root: str | Path,
+    codes: list[str],
+    start: str,
+    end: str,
+    root: str | Path,
     client_factory: Callable[[], BaostockClient] = BaostockClient,
+    *,
+    progress_name: str = "_progress.json",
+    failures_name: str = "_failures.json",
 ) -> dict[str, Exception]:
     root = Path(root)
     daily_dir = root / "daily"
-    progress_path = root / "_progress.json"
-    failures_path = root / "_failures.json"
+    progress_path = root / progress_name
+    failures_path = root / failures_name
     progress = json.loads(progress_path.read_text()) if progress_path.exists() else {}
     failures: dict[str, str] = {}
     with client_factory() as client:
@@ -102,9 +109,7 @@ def fetch_daily_many(
                 merged = pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame()
                 if not merged.empty:
                     merged = (
-                        merged.drop_duplicates("date", keep="last")
-                        .sort_values("date")
-                        .reset_index(drop=True)
+                        merged.drop_duplicates("date", keep="last").sort_values("date").reset_index(drop=True)
                     )
                 _atomic_parquet(merged, destination)
                 progress[code] = {
@@ -141,8 +146,60 @@ def fetch_adjust_factor(
         factors["dividOperateDate"] = pd.to_datetime(factors["dividOperateDate"], errors="coerce")
     for column in ("foreAdjustFactor", "backAdjustFactor", "adjustFactor"):
         if column in factors:
-            factors[column] = pd.to_numeric(
-                factors[column].replace("", pd.NA), errors="coerce"
-            ).astype("float64")
+            factors[column] = pd.to_numeric(factors[column].replace("", pd.NA), errors="coerce").astype(
+                "float64"
+            )
     _atomic_parquet(factors, destination)
     return destination
+
+
+def fetch_adjust_factor_many(
+    codes: list[str],
+    start: str,
+    end: str,
+    root: str | Path,
+    *,
+    progress_name: str = "_adjfactor_progress.json",
+    failures_name: str = "_adjfactor_failures.json",
+    client_factory: Callable[[], BaostockClient] = BaostockClient,
+) -> dict[str, Exception]:
+    """按股票抓取复权因子，并用独立进度/失败文件支持分片并行。"""
+    root = Path(root)
+    progress_path, failures_path = root / progress_name, root / failures_name
+    progress = json.loads(progress_path.read_text()) if progress_path.exists() else {}
+    failures: dict[str, str] = {}
+    with client_factory() as client:
+        for code in codes:
+            destination = root / "adjfactor" / f"{code}.parquet"
+            if destination.exists() and progress.get(code, {}).get("end", "") >= end:
+                continue
+            try:
+                factors = client.adjust_factor(code, start, end)
+                if "dividOperateDate" in factors:
+                    factors["dividOperateDate"] = pd.to_datetime(factors["dividOperateDate"], errors="coerce")
+                for column in ("foreAdjustFactor", "backAdjustFactor", "adjustFactor"):
+                    if column in factors:
+                        factors[column] = pd.to_numeric(
+                            factors[column].replace("", pd.NA), errors="coerce"
+                        ).astype("float64")
+                _atomic_parquet(factors, destination)
+                progress[code] = {
+                    "start": start,
+                    "end": end,
+                    "fetched_at": datetime.now(UTC).isoformat(),
+                }
+                _atomic_json(progress_path, progress)
+            except Exception as exc:
+                failures[code] = f"{type(exc).__name__}: {exc}"
+                _atomic_json(failures_path, failures)
+                LOG.exception("adjust factor %s failed", code)
+    if not failures and failures_path.exists():
+        failures_path.unlink()
+    return {code: RuntimeError(message) for code, message in failures.items()}
+
+
+def stable_shard(code: str, count: int) -> int:
+    """用 SHA256 前 8 位确定性分配股票分片。"""
+    if count < 1:
+        raise ValueError("分片数必须大于 0")
+    return int(hashlib.sha256(code.encode("utf-8")).hexdigest()[:8], 16) % count

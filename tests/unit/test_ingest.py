@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from q6.data import ingest
-from q6.data.ingest import _atomic_json, fetch_daily_many
+from q6.data.ingest import _atomic_json, fetch_daily_many, stable_shard
 from q6.data.sources import baostock
 from q6.data.sources.baostock import BaostockClient, BaostockError, to_typed
 
@@ -178,3 +178,9 @@ def test_error_fixture_is_an_actual_recording() -> None:
     recorded = fixture("failure_invalid_code.json")
     with pytest.raises(BaostockError, match=recorded["error_code"]):
         raise BaostockError(recorded["error_code"], recorded["error_msg"])
+
+
+def test_stable_shard_is_deterministic_and_in_range() -> None:
+    first = [stable_shard(f"sh.{code:06d}", 4) for code in range(2000)]
+    assert first == [stable_shard(f"sh.{code:06d}", 4) for code in range(2000)]
+    assert set(first) == {0, 1, 2, 3}

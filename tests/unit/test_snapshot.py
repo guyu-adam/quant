@@ -147,9 +147,7 @@ def test_universe_monthly_round_trip_keeps_string_index_and_normalizes_update_da
     )
     tables["universe_monthly"] = universe
 
-    snapshot_id = write_snapshot(
-        tables, tmp_path, asof="2020-03-01", sources={}, code_version="test"
-    )
+    snapshot_id = write_snapshot(tables, tmp_path, asof="2020-03-01", sources={}, code_version="test")
     loaded = load_snapshot(tmp_path, snapshot_id, tables=("universe_monthly",))
 
     expected = universe.copy()
@@ -162,9 +160,59 @@ def test_universe_monthly_round_trip_keeps_string_index_and_normalizes_update_da
 
 
 def test_load_missing_table_raises_key_error_with_table_name(tmp_path: Path) -> None:
-    snapshot_id = write_snapshot(
-        _tables(), tmp_path, asof="2012-12-31", sources={}, code_version="test"
-    )
+    snapshot_id = write_snapshot(_tables(), tmp_path, asof="2012-12-31", sources={}, code_version="test")
 
     with pytest.raises(KeyError, match="universe_monthly"):
         load_snapshot(tmp_path, snapshot_id, tables=("universe_monthly",))
+
+
+def test_yearly_iterator_matches_full_frame_snapshot_bytes(tmp_path: Path) -> None:
+    tables = _tables()
+    full_root, streamed_root = tmp_path / "full", tmp_path / "streamed"
+    full_id = write_snapshot(tables, full_root, asof="2012-12-31", sources={}, code_version="same")
+    daily = tables["daily"]
+    yearly = ((int(year), group) for year, group in daily.groupby(daily["date"].dt.year, sort=True))
+    streamed_id = write_snapshot(
+        {**tables, "daily": yearly},
+        streamed_root,
+        asof="2012-12-31",
+        sources={},
+        code_version="same",
+    )
+    assert full_id == streamed_id
+    manifest = json.loads((full_root / full_id / "manifest.json").read_text())
+    for entry in manifest["files"]:
+        assert (full_root / full_id / entry["path"]).read_bytes() == (
+            streamed_root / streamed_id / entry["path"]
+        ).read_bytes()
+
+
+def test_snapshot_keeps_missing_volume_as_nullable_integer(tmp_path: Path) -> None:
+    tables = _tables()
+    tables["daily"].loc[0, "volume"] = None
+    snapshot_id = write_snapshot(tables, tmp_path, asof="2012-12-31", sources={}, code_version="test")
+    daily = load_snapshot(tmp_path, snapshot_id)["daily"]
+    row = daily.loc[daily["code"] == "sh.600001"].iloc[0]
+    assert pd.isna(row["volume"])
+
+
+def test_year_partition_path_iterator_preserves_snapshot_bytes(tmp_path: Path) -> None:
+    tables = _tables()
+    source_root, copied_root = tmp_path / "source", tmp_path / "copied"
+    snapshot_id = write_snapshot(tables, source_root, asof="2012-12-31", sources={}, code_version="same")
+    manifest = json.loads((source_root / snapshot_id / "manifest.json").read_text())
+    partitions = [
+        (int(Path(item["path"]).stem.split("=")[1]), source_root / snapshot_id / item["path"])
+        for item in manifest["files"]
+        if item["path"].startswith("daily/")
+    ]
+    copied_id = write_snapshot(
+        {**tables, "daily": iter(partitions)},
+        copied_root,
+        asof="2012-12-31",
+        sources={},
+        code_version="same",
+    )
+    assert copied_id == snapshot_id
+    for _, path in partitions:
+        assert path.read_bytes() == (copied_root / copied_id / "daily" / path.name).read_bytes()
