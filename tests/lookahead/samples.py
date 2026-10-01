@@ -88,3 +88,19 @@ def make_data(T: int = 250, N: int = 8, seed: int = 7) -> dict[str, pd.DataFrame
     close[rng.random((T, N)) < 0.03] = np.nan
     vol = rng.integers(1_000, 100_000, (T, N)).astype(float)
     return {"close": pd.DataFrame(close, idx, cols), "volume": pd.DataFrame(vol, idx, cols)}
+
+
+def data_with_fields() -> dict[str, pd.DataFrame]:
+    """make_data 再补上 ML 特征需要的列（P2-18b）。"""
+    data = make_data()
+    close = data["close"]
+    data.update(
+        open=close * 0.999,
+        high=close * 1.01,
+        low=close * 0.99,
+        ret=close.pct_change(fill_method=None),
+        amount=data["volume"] * close,
+        turn=data["volume"] / 1_000,
+        float_cap=data["volume"] * close * 100,
+    )
+    return data

@@ -1,6 +1,6 @@
+from lookahead.samples import data_with_fields
 from q6.lint.truncation_test import check_lookahead
 from q6.ml.features import build_features
-from tests.unit.test_ml_features import data_with_fields
 
 
 def test_features_have_no_lookahead():

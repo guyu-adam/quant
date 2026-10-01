@@ -1,24 +1,9 @@
 import numpy as np
 import pytest
+from lookahead.samples import data_with_fields
 
 from q6.alpha.library import FACTORS
 from q6.ml.features import FEATURE_NAMES, ROLLING_NAMES, WINDOWS, assert_no_inf, build_features, to_long
-from tests.lookahead.samples import make_data
-
-
-def data_with_fields():
-    data = make_data()
-    close = data["close"]
-    data.update(
-        open=close * 0.999,
-        high=close * 1.01,
-        low=close * 0.99,
-        ret=close.pct_change(fill_method=None),
-        amount=data["volume"] * close,
-        turn=data["volume"] / 1_000,
-        float_cap=data["volume"] * close * 100,
-    )
-    return data
 
 
 def test_feature_names_count_and_shapes():
