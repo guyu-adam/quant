@@ -1,8 +1,31 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
-.env
-logs/
+*.py[cod]
+.venv/
 .pytest_cache/
-grid_state.json
-.schwab_token.json
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+*.egg-info/
+
+# 密钥：只允许 config/.env.example 进 git
+.env
+*.env
+!config/.env.example
+
+# 运行产物 / 大文件（快照 parquet >300MB 走 GitHub Release，见 docs/rebuild）
+saves/
+logs/
+cache/
+data/raw/
+data/snapshots/*/*.parquet
+data/snapshots/*/**/*.parquet
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.log
+
+# 系统
+.DS_Store
+Thumbs.db
