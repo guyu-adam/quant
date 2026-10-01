@@ -28,7 +28,7 @@ def test_build_inputs_adjustments_and_masking():
     d = build_inputs(pd.DataFrame(rows))
     assert d["volume"].loc["2020-01-04", "A"] == 50
     assert d["amount"].loc["2020-01-04", "A"] == 1000
-    assert d["vwap"].loc["2020-01-04", "A"] == 10
+    assert d["vwap"].loc["2020-01-04", "A"] == 20  # 1000 / 后复权股数 50；与 close_hfq 同口径
     assert d["float_cap"].loc["2020-01-04", "A"] == 50000
     for field in d:
         assert pd.isna(d[field].loc["2020-01-03", "A"])

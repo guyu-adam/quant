@@ -5,6 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+# 滑窗分块的元素上限：2e6 个 float64 ≈ 16MB 临时数组。2e7 时全市场跑 30 个因子峰值 RSS 675MB，超过 512MB 上限
+_CHUNK_ELEMS = 2_000_000
+
 
 def _window(d: int) -> int:
     if isinstance(d, bool) or not isinstance(d, (int, np.integer)) or d <= 0:
@@ -70,7 +73,7 @@ def _window_extreme(x: pd.DataFrame, d: int, maximum: bool) -> pd.DataFrame:
         return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
     a = x.to_numpy(dtype=float, copy=False)
     out = np.full(a.shape, np.nan)
-    step = max(1, 20_000_000 // (a.shape[0] * d))
+    step = max(1, _CHUNK_ELEMS // (a.shape[0] * d))
     for start in range(0, a.shape[1], step):
         block = a[:, start : start + step]
         win = np.lib.stride_tricks.sliding_window_view(block, d, axis=0)
@@ -90,7 +93,7 @@ def ts_rank(x: pd.DataFrame, d: int) -> pd.DataFrame:
         return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
     a = x.to_numpy(dtype=float, copy=False)
     out = np.full(a.shape, np.nan)
-    step = max(1, 20_000_000 // (a.shape[0] * d))
+    step = max(1, _CHUNK_ELEMS // (a.shape[0] * d))
     for start in range(0, a.shape[1], step):
         win = np.lib.stride_tricks.sliding_window_view(a[:, start : start + step], d, axis=0)
         last = win[..., -1, None]
@@ -127,7 +130,7 @@ def ts_cov(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:
     xa = x.to_numpy(dtype=float, copy=False)
     ya = y.to_numpy(dtype=float, copy=False)
     out = np.full(xa.shape, np.nan)
-    step = max(1, 20_000_000 // (xa.shape[0] * d))
+    step = max(1, _CHUNK_ELEMS // (xa.shape[0] * d))
     for start in range(0, xa.shape[1], step):
         xw = np.lib.stride_tricks.sliding_window_view(xa[:, start : start + step], d, axis=0)
         yw = np.lib.stride_tricks.sliding_window_view(ya[:, start : start + step], d, axis=0)
@@ -149,7 +152,7 @@ def _window_reduce(x: pd.DataFrame, d: int, reducer) -> pd.DataFrame:
         return pd.DataFrame(np.nan, index=x.index, columns=x.columns)
     a = x.to_numpy(dtype=float, copy=False)
     out = np.full(a.shape, np.nan)
-    step = max(1, 20_000_000 // (a.shape[0] * d))
+    step = max(1, _CHUNK_ELEMS // (a.shape[0] * d))
     for start in range(0, a.shape[1], step):
         win = np.lib.stride_tricks.sliding_window_view(a[:, start : start + step], d, axis=0)
         valid = ~np.isnan(win).any(axis=-1)

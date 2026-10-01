@@ -30,11 +30,21 @@ rss_guard() {
   uv run python scripts/rss_guard.py --limit-mb "$rss_limit" -- "$@"
 }
 
+# 第 5 步每个测试文件单独一个进程、单独受 RSS 上限约束：几个真实快照测试各自 <512MB，
+# 但放在同一个 pytest 进程里，macOS malloc 不归还页面，峰值会累加到 584MB（P2-13 合并时实测）。
+lookahead_per_file() {
+  local f
+  for f in tests/lookahead/test_*.py; do
+    printf -- '-- %s\n' "$f"
+    rss_guard uv run pytest "$f" || return 1
+  done
+}
+
 run_step 1 'uv sync --frozen' uv sync --frozen
 run_step 2 'uv run ruff check src tests scripts' uv run ruff check src tests scripts
 run_step 3 'uv run python -m q6.lint.lookahead_ast src' uv run python -m q6.lint.lookahead_ast src
 run_step 4 'uv run pytest tests/unit tests/property' rss_guard uv run pytest tests/unit tests/property
-run_step 5 'uv run pytest tests/lookahead' rss_guard uv run pytest tests/lookahead
+run_step 5 'uv run pytest tests/lookahead (one process per file)' lookahead_per_file
 run_step 6 'snapshot validation' rss_guard uv run python scripts/check_snapshot.py
 
 if [[ "${Q6_REQUIRE_SNAPSHOT:-}" == 1 ]]; then

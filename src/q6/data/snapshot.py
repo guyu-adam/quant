@@ -302,6 +302,8 @@ def load_snapshot(
         start, end = map(pd.Timestamp, date_range)
         if start > end:
             raise ValueError("date_range 起始日期必须不晚于结束日期")
+        # 显式要锁箱期数据 → 报错，不静默返回空
+        lockbox.check_dates([start, end], "load_snapshot(date_range)")
         date_filters = [("date", ">=", start.to_pydatetime()), ("date", "<=", end.to_pydatetime())]
     directory, _, files = _read_manifest(root, snapshot_id)
     _validate_extras(directory, files)

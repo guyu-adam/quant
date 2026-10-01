@@ -95,6 +95,19 @@ def test_explicit_lockbox_years_rejected(snap, years):
         load_snapshot(root, sid, years=years)
 
 
+@pytest.mark.parametrize("date_range", [("2024-01-01", "2024-07-01"), ("2025-01-01", "2025-06-30")])
+def test_explicit_lockbox_date_range_rejected(snap, date_range):
+    root, sid = snap
+    with pytest.raises(LockboxError):
+        load_snapshot(root, sid, date_range=date_range)
+
+
+def test_date_range_before_lockbox_allowed(snap):
+    root, sid = snap
+    daily = load_snapshot(root, sid, date_range=("2024-01-01", "2024-06-30"))["daily"]
+    assert len(daily) and (daily["date"] < LOCKBOX_TS).all()
+
+
 def test_aux_tables_drop_lockbox_rows(snap):
     root, sid = snap
     t = load_snapshot(root, sid, tables=("calendar", "quarantine", "universe_monthly"))

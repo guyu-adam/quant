@@ -28,7 +28,8 @@ def build_inputs(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
         raise ValueError("daily data contains duplicate (date, code) rows")
     valid = (frame["tradestatus"] != 0) & ~frame["bad"].astype(bool)
     frame["volume_hfq"] = frame["volume"].div(frame["adj_factor"].where(frame["adj_factor"] != 0))
-    frame["vwap"] = frame["amount"].div(frame["volume"].where(frame["volume"] != 0))
+    # 后复权口径的 vwap = 成交额 / 后复权股数，与 *_hfq 价格同一口径（用原始股数会得到不复权价）
+    frame["vwap"] = frame["amount"].div(frame["volume_hfq"].where(frame["volume_hfq"] != 0))
     frame["float_cap"] = frame["amount"].div((frame["turn"] / 100).where(frame["turn"] > 0))
     fields = {
         "open": "open_hfq",
