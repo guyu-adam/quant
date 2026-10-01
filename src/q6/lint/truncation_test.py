@@ -280,3 +280,38 @@ def pit_runner(
 
     run.__name__ = getattr(make_decider, "__name__", "pit_strategy")
     return run
+
+
+def strategy_runner(
+    make_strategy: Callable[[], Any],
+    *,
+    initial_cash: float = 1_000_000.0,
+) -> Callable[[Mapping[str, pd.DataFrame]], pd.DataFrame]:
+    """把 strategy.base.Strategy 包装成截断测试可用的函数（P2-14）：输出逐 bar 的目标权重矩阵。
+
+    - 每次运行新建策略实例；账户固定为"空仓 + initial_cash"，可投资范围 = 全部列（截断测试只看数据依赖）。
+    - on_bar 返回 None（保持不调仓）时沿用上一次的目标；字典里没出现的代码记 0。预热期之前输出 NaN。
+    """
+    from q6.core.types import AccountSnapshot
+    from q6.strategy.base import BarContext
+
+    def make_decider():
+        s = make_strategy()
+        warmup = s.spec.warmup
+        last: dict[str, float] = {}
+
+        def decide(view: PITView):
+            nonlocal last
+            if view.t + 1 < warmup:
+                return np.full(len(view.symbols), np.nan)
+            acct = AccountSnapshot(view.now.to_pydatetime(), initial_cash)
+            w = s.on_bar(BarContext(view, acct, view.symbols))
+            if w is not None:
+                last = dict(w)
+            return np.array([last.get(sym, 0.0) for sym in view.symbols], dtype=np.float64)
+
+        return decide
+
+    run = pit_runner(make_decider)
+    run.__name__ = getattr(make_strategy, "__name__", "strategy")
+    return run
