@@ -30,7 +30,7 @@ run_snapshot() {
     printf 'SKIP snapshot (Q6_SNAPSHOT unset)\n'
     return 0
   fi
-  uv run python -c 'import os; from pathlib import Path; from q6.data.snapshot import verify_snapshot; verify_snapshot(Path("data/snapshots") / os.environ["Q6_SNAPSHOT"])'
+  uv run python -c 'import os; from pathlib import Path; from q6.data.snapshot import verify_snapshot; verify_snapshot(Path(os.environ.get("Q6_SNAPSHOT_ROOT", "data/snapshots")), os.environ["Q6_SNAPSHOT"])'
 }
 
 run_step 1 'uv sync --frozen' uv sync --frozen
