@@ -35,6 +35,7 @@ from q6.core.types import Bar, Fill, Order, Side, validate_target_weights
 from q6.engine.broker_sim import BrokerSim
 from q6.engine.feed import SnapshotFeed
 from q6.engine.matching import MatchConfig, Reason, match_order
+from q6.risk.monitor import RiskConfig, RiskMonitor
 from q6.strategy.base import BarContext, Strategy
 
 CLOSE = time(15, 0)
@@ -51,6 +52,7 @@ class EngineConfig:
     sigma_window: int = 20
     delist_after: int = 20
     delist_recovery: float = 1.0
+    risk: RiskConfig | None = None  # None = 不启用风控（P2 研究默认）；启用时见 risk_targets
 
 
 @dataclass
@@ -68,6 +70,7 @@ class BacktestResult:
     reasons: dict[str, int]  # 未成交 / 部分成交原因计数；MISSING_ROW = 持仓标的当日没有行情行的天数
     initial_cash: float
     delistings: list[dict] = field(default_factory=list)  # date, symbol, qty, last_price, value, cost
+    risk_events: list[dict] = field(default_factory=list)  # RiskMonitor.events
 
     @property
     def returns(self) -> pd.Series:
@@ -88,6 +91,22 @@ def _bar(rows: dict[str, np.ndarray], j: int, sym: str, ts: datetime) -> Bar:
     return Bar(ts, sym, rows["open"][j], rows["high"][j], rows["low"][j], rows["close"][j],
                int(rows["volume"][j]), float(rows["amount"][j]), rows["preclose"][j],
                tradable=True, is_st=bool(rows["is_st"][j] == 1))
+
+
+def risk_targets(monitor: RiskMonitor | None, ts: datetime, equity: float,
+                 positions: dict[str, float], target: dict[str, float] | None) -> dict[str, float] | None:
+    """第 3 步盯市之后、第 4 步下单之前的风控（架构 §4.4 的固定顺序：撮合 → 盯市 → 风控 → 策略 → 下单）。
+    positions：代码 → 持仓市值。熔断触发当天强制按 当前持仓 × breaker_scale 调仓（策略返回 None 也执行）；
+    其余触发状态下只许减仓。两个引擎共用这个函数。"""
+    if monitor is None:
+        return target
+    monitor.on_mark(ts, equity)
+    cur = {s: v / equity for s, v in positions.items()}
+    if monitor.breaker_triggered:
+        return monitor.filter_target(target or {}, cur)
+    if target is None:
+        return None
+    return monitor.filter_target(target, cur)
 
 
 class EventEngine:
@@ -111,6 +130,7 @@ class EventEngine:
         absent: dict[str, int] = {}  # 持仓标的连续无行情行的天数
         delistings: list[dict] = []
         clock = BacktestClock()  # 跨段的日期必须严格前进，段衔接写错（重复 / 倒序）会在这里报错
+        monitor = RiskMonitor(cfg.risk) if cfg.risk is not None else None
 
         def keep() -> set[str]:
             held = set(broker.state.positions) if broker is not None else set()
@@ -189,14 +209,19 @@ class EventEngine:
                     if math.isfinite(rows["adj_factor"][j]):
                         last_adj[s] = rows["adj_factor"][j]
 
-                # 4. 决策（预热不足时不调用）
+                # 4. 风控 → 决策（预热不足时不调用策略）→ 下单
+                target = None
                 if i + 1 >= spec.warmup:
                     view = p.view(i)
                     universe = tuple(s for s, m in zip(p.symbols, seg.universe[i], strict=True) if m)
                     target = strategy.on_bar(BarContext(view, broker.state, universe))
                     if target is not None:
                         validate_target_weights(target)
-                        pending = self._orders(target, broker, p, i, rows, sym_idx, ts, ids)
+                st = broker.state
+                target = risk_targets(monitor, ts, st.equity,
+                                      {s: q.market_value for s, q in st.positions.items()}, target)
+                if target is not None:
+                    pending = self._orders(target, broker, p, i, rows, sym_idx, ts, ids)
 
                 st = broker.state
                 records.append(dict(
@@ -210,7 +235,8 @@ class EventEngine:
             seg = p = view = rows = None  # noqa: F841
 
         daily = pd.DataFrame(records).set_index("date")
-        return BacktestResult(daily, fills, reasons, cfg.initial_cash, delistings)
+        return BacktestResult(daily, fills, reasons, cfg.initial_cash, delistings,
+                              monitor.events if monitor is not None else [])
 
     def _orders(self, target, broker: BrokerSim, p, i: int, rows, sym_idx, ts, ids) -> list[_Pending]:
         cfg = self.cfg

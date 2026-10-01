@@ -36,9 +36,10 @@ import pandas as pd
 from q6.core.clock import BacktestClock
 from q6.core.pit import Panel
 from q6.core.types import AccountSnapshot, Fill, Side
-from q6.engine.event import BacktestResult, EngineConfig, _ts
+from q6.engine.event import BacktestResult, EngineConfig, _ts, risk_targets
 from q6.engine.feed import Segment, SnapshotFeed
 from q6.engine.matching import Reason, make_fill, match_arrays
+from q6.risk.monitor import RiskMonitor
 from q6.strategy.base import BarContext, Strategy
 
 WeightsFn = Callable[[Segment], np.ndarray]
@@ -64,6 +65,7 @@ class _Acct:
     fills: list[Fill] = field(default_factory=list)
     reasons: dict[str, int] = field(default_factory=dict)
     delistings: list[dict] = field(default_factory=list)
+    monitor: RiskMonitor | None = None
 
     def bump(self, key: str, n: int = 1) -> None:
         self.reasons[key] = self.reasons.get(key, 0) + n
@@ -131,7 +133,9 @@ class VectorEngine:
         策略只能在可投资范围内选股（策略卡硬性要求），所以多出来的列不改变任何策略的输入。"""
         if not jobs:
             return []
-        accts = [_Acct(cfg, fn, warmup, cfg.initial_cash) for fn, warmup, cfg in jobs]
+        accts = [_Acct(cfg, fn, warmup, cfg.initial_cash,
+                       monitor=RiskMonitor(cfg.risk) if cfg.risk is not None else None)
+                 for fn, warmup, cfg in jobs]
         max_warmup = max(a.warmup for a in accts)
         clock = BacktestClock()
         last_day: pd.Timestamp | None = None
@@ -167,7 +171,8 @@ class VectorEngine:
         out = []
         for a in accts:
             daily = pd.DataFrame(a.records).set_index("date")
-            out.append(BacktestResult(daily, a.fills, a.reasons, a.cfg.initial_cash, a.delistings))
+            out.append(BacktestResult(daily, a.fills, a.reasons, a.cfg.initial_cash, a.delistings,
+                                      a.monitor.events if a.monitor is not None else []))
         return out
 
     # ------------------------------------------------------------------ 单日
@@ -268,11 +273,25 @@ class VectorEngine:
             if math.isfinite(adj[j]):
                 a.last_adj[s] = adj[j]
 
-        # 4. 决策：W 第 i 行 → 次日订单
+        # 4. 风控 → 决策：W 第 i 行 → 次日订单
+        row = None
         if i + 1 >= a.warmup and not np.isnan(w[i]).all():
             row = w[i]
             if np.isnan(row).any() or (row < -1e-9).any() or row.sum() > 1 + 1e-9:
                 raise ValueError(f"{day.date()} 目标权重非法（含 NaN / 负数 / 合计 >1）")
+        if a.monitor is not None:
+            syms = p.symbols
+            target = None if row is None else {syms[j]: float(row[j]) for j in np.flatnonzero(row != 0)}
+            equity = a.cash + sum(q[0] * q[3] for q in a.pos.values())
+            target = risk_targets(a.monitor, ts, equity, {s: q[0] * q[3] for s, q in a.pos.items()}, target)
+            if target is None:
+                row = None
+            else:
+                row = np.zeros(len(syms))
+                for s, x in target.items():
+                    if s in sym_idx:
+                        row[sym_idx[s]] = x
+        if row is not None:
             self._orders(a, p, i, row, close, status, sym_idx)
 
         # 5. 记录

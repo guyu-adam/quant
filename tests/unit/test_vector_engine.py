@@ -14,6 +14,7 @@ from q6.engine.event import EngineConfig, EventEngine
 from q6.engine.feed import ENGINE_FIELDS, Segment
 from q6.engine.matching import MatchConfig
 from q6.engine.vector import VectorEngine, check_weights_pit, strategy_weights
+from q6.risk.monitor import RiskConfig
 from q6.strategy.base import StrategyBase, StrategySpec
 
 A, B = "sz.000001", "sh.600000"
@@ -154,6 +155,23 @@ def test_state_follows_symbols_across_segments_with_different_columns():
     e, v = both([seg1, seg2], plan, EngineConfig())
     assert_same(e, v)
     assert {f.symbol for f in v.fills} == {A, C}
+
+
+def test_risk_breaker_forces_liquidation_identically():
+    """连跌 3 天约 8%：日亏触发（只许减仓）；累计回撤过 10% 触发熔断，触发日收盘强制清仓、次日成交，
+    覆盖策略当天给的满仓目标；之后策略一直返回 None，解除后也不会再买回。"""
+    c = [10, 10, 10, 9.1, 8.3, 7.6, 7.6, 7.6]
+    f = frames(close_a=c, open=pd.DataFrame({A: c, B: [20.0] * 8}, index=DAYS))
+    cfg = EngineConfig(risk=RiskConfig(daily_loss_limit=-0.03, max_drawdown=-0.10, cooldown_days=2))
+    e, v = both([f], {1: {A: 0.95}, 4: {A: 0.95, B: 0.0}}, cfg)
+    assert_same(e, v)
+    assert e.risk_events == v.risk_events
+    kinds = [x["kind"] for x in v.risk_events]
+    assert "DAILY_LOSS" in kinds and "BREAKER_ON" in kinds
+    on = next(x["date"] for x in v.risk_events if x["kind"] == "BREAKER_ON")
+    sells = [fl for fl in v.fills if fl.side.name == "SELL"]
+    assert sells and sells[0].ts.date() > on.date()  # 触发日收盘下单，次日成交
+    assert v.daily["n_pos"].iloc[-1] == 0
 
 
 def test_run_many_equals_separate_runs():

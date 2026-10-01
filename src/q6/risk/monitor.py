@@ -2,6 +2,12 @@
 
 The breaker resets its peak to the equity on the release mark. This prevents the
 same historical drawdown from immediately re-triggering the breaker.
+
+熔断期间的目标权重（Cen 审查后修订）：
+- 触发当天：目标 = 当前持仓 × breaker_scale，引擎应**强制执行**（策略返回 None 也执行），
+  见 `breaker_triggered`。
+- 冷却期其余日子：只许减仓（同日亏规则）。原版每天都返回"当前持仓 × breaker_scale"，引擎每天调用时
+  breaker_scale=0.5 会让仓位逐日减半（0.5、0.25、0.125……）而不是一次性减半。
 """
 
 from __future__ import annotations
@@ -48,6 +54,7 @@ class RiskMonitor:
         self._breaker_on = False
         self._cooldown_left = 0
         self._daily_loss_hit = False
+        self._triggered_today = False
         self._events: list[dict] = []
         self._state = RiskState(False, False, 0, 0.0, 0.0, 0.0)
 
@@ -70,6 +77,7 @@ class RiskMonitor:
         if daily_hit:
             self._events.append({"date": ts, "kind": "DAILY_LOSS", "equity": equity, "value": day_return})
 
+        self._triggered_today = False
         if self._breaker_on:
             self._cooldown_left -= 1
             if self._cooldown_left == 0:
@@ -81,6 +89,7 @@ class RiskMonitor:
             drawdown = equity / self._peak - 1
             if equity <= self._peak * (1 + self.cfg.max_drawdown):
                 self._breaker_on = True
+                self._triggered_today = True
                 self._cooldown_left = self.cfg.cooldown_days
                 self._events.append({"date": ts, "kind": "BREAKER_ON", "equity": equity, "value": drawdown})
 
@@ -92,14 +101,19 @@ class RiskMonitor:
         )
         return self._state
 
+    @property
+    def breaker_triggered(self) -> bool:
+        """最近一次 on_mark 是否刚触发熔断（当天必须按 current × breaker_scale 调仓，不管策略是否给目标）。"""
+        return self._triggered_today
+
     def filter_target(self, target: dict[str, float], current: dict[str, float]) -> dict[str, float]:
-        if self._breaker_on:
+        if self._triggered_today:
             result = {
                 s: w * self.cfg.breaker_scale
                 for s, w in current.items()
                 if w * self.cfg.breaker_scale > 0
             }
-        elif self._daily_loss_hit:
+        elif self._breaker_on or self._daily_loss_hit:
             result = {
                 s: min(target.get(s, 0.0), current.get(s, 0.0))
                 for s in set(target) | set(current)

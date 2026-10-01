@@ -75,6 +75,19 @@ def test_breaker_scale_halves_existing_positions():
     assert monitor.filter_target({"NEW": 0.2}, {"A": 0.4, "B": 0.2}) == {"A": 0.2, "B": 0.1}
 
 
+def test_breaker_scale_applies_once_not_every_cooldown_day():
+    """回归（Cen 审查）：冷却期内每天调用 filter_target 不能让仓位逐日再减半。"""
+    monitor = RiskMonitor(RiskConfig(cooldown_days=5, breaker_scale=0.5))
+    mark(monitor, 0, 100)
+    mark(monitor, 1, 80)
+    assert monitor.breaker_triggered
+    assert monitor.filter_target({"A": 0.4}, {"A": 0.4}) == {"A": 0.2}
+    mark(monitor, 2, 80)
+    assert not monitor.breaker_triggered
+    assert monitor.filter_target({"A": 0.4}, {"A": 0.2}) == {"A": 0.2}  # 只许减仓：不加回去，也不再减半
+    assert monitor.filter_target({"A": 0.1, "NEW": 0.3}, {"A": 0.2}) == {"A": 0.1}  # 减仓可以，新开不行
+
+
 @pytest.mark.parametrize("equity", [0, -1, float("nan"), float("inf")])
 def test_invalid_equity_rejected(equity):
     with pytest.raises(ValueError):
