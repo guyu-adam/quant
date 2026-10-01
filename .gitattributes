@@ -1,0 +1,2 @@
+# 快照清单逐字节一致（Win 不转 CRLF），这样可以直接和 Release 资产比 SHA256
+data/snapshots/*/manifest.json -text
