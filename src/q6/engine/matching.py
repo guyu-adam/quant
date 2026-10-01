@@ -226,7 +226,8 @@ def match_arrays(
     decide(buy & (q == 0), Reason.NO_CASH)
 
     q = np.where(undecided, q, 0)
-    reason[undecided & (q < want)] = Reason.PARTIAL
+    # 部分成交 = 被参与率 / 现金 / 封板排队压到了"按手数取整后的想要数量"以下；单纯的手数取整不算
+    reason[undecided & (q < _lot_round(codes, side, want, sellable))] = Reason.PARTIAL
     price = np.where(q > 0, price, np.nan)
     return MatchArrays(q, price, ref, np.where(q > 0, slip, 0.0), np.where(q > 0, imp, 0.0), reason)
 

@@ -90,8 +90,8 @@ def test_participation_cap_partial_fill():
 
 
 def test_lots_main_and_star():
-    f, _ = m(order(qty=1999), bar())
-    assert f.qty == 1900
+    f, why = m(order(qty=1999), bar())
+    assert f.qty == 1900 and why is Reason.FILLED  # 单纯的手数取整不算部分成交
     assert m(order(qty=199, sym="sh.688981"), bar(sym="sh.688981")) == (None, Reason.NO_VOLUME)
     f, _ = m(order(qty=201, sym="sh.688981"), bar(sym="sh.688981"))
     assert f.qty == 201
@@ -101,7 +101,7 @@ def test_sell_odd_lot_all_at_once_and_t1():
     f, why = m(order(Side.SELL, 150), bar(), sellable=150)
     assert why is Reason.FILLED and f.qty == 150
     f, why = m(order(Side.SELL, 120), bar(), sellable=150)
-    assert why is Reason.PARTIAL and f.qty == 100
+    assert why is Reason.FILLED and f.qty == 100  # 120 取整到 100 是手数规则，不是部分成交
     assert m(order(Side.SELL, 100), bar(), sellable=0) == (None, Reason.NO_SELLABLE)
 
 

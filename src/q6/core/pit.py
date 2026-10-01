@@ -35,7 +35,10 @@ class Panel:
         symbols: Iterable[str],
         fields: Mapping[str, np.ndarray],
         field_lag: Mapping[str, int] | None = None,
+        *,
+        copy: bool = True,
     ) -> None:
+        """copy=False 只给"构造完就丢掉自己引用"的调用方（引擎数据源）用，省一份面板内存；数组仍会被设为只读。"""
         d = pd.DatetimeIndex(pd.to_datetime(list(dates) if not isinstance(dates, pd.Index) else dates))
         if d.hasnans:
             raise ValueError("dates 含 NaT")
@@ -49,7 +52,7 @@ class Panel:
         T, N = len(d), len(syms)
         frozen: dict[str, np.ndarray] = {}
         for name, arr in fields.items():
-            a = np.array(arr, copy=True)  # 自己持有一份，外部再改原数组不影响
+            a = np.array(arr, copy=True) if copy else np.asarray(arr)  # 默认自己持有一份
             if a.shape != (T, N):
                 raise ValueError(f"字段 {name} 形状 {a.shape} ≠ ({T}, {N})")
             a.setflags(write=False)
@@ -133,6 +136,16 @@ class Panel:
     def view(self, t: int) -> PITView:
         """仅供引擎 / 研究层调用。"""
         return PITView(self, t)
+
+    def row(self, name: str, t: int) -> np.ndarray:
+        """第 t 行（拷贝）。**仅供引擎**撮合 t 这根 bar 用；Panel 本身从不交给策略，策略只拿 PITView。"""
+        return self._fields[name][t].copy()
+
+    def block(self, name: str, start: int, stop: int) -> np.ndarray:
+        """[start, stop) 行（拷贝）。仅供引擎计算 adv / sigma 这类"截至 t"的统计量，调用方负责 stop ≤ t+1。"""
+        if not 0 <= start <= stop <= len(self._dates):
+            raise IndexError(f"block [{start}, {stop}) 越界")
+        return self._fields[name][start:stop].copy()
 
 
 class PITView:
