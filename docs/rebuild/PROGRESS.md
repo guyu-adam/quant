@@ -24,7 +24,7 @@
 | P1-11 | 内容寻址快照（manifest + SHA256，加载即校验） | Bob | 完成（打回 1 次） | `f57f88f` |
 | P1-12 | 全量快照构建 | Bob 跑 / Cen 定 | 完成 | `f075a9b`、`d08d479`；见下方"快照" |
 | P1-13 | PITView + `Panel.from_long` | Cen | 完成 | `86209e4`、`f552ea4` |
-| P1-14 | 截断 / 扰动未来函数检测 | Cen | 完成 | `86209e4`、`14facfa`、`7c573a2`（RSS 修复，见第 3 节） |
+| P1-14 | 截断 / 扰动未来函数检测 | Cen | 完成（Adam 验收打回 1 次） | `86209e4`、`14facfa`、`7c573a2`（RSS 修复，见第 3 节）；`d14bb8b`（快照传路径即报错 + 验收模式，见第 5 节） |
 | P1-15 | AST 静态扫描 + pre-commit | Bob | 完成 | `e2279ef` |
 | P1-16 | 一键验证 `verify.sh` / `verify.ps1` | Bob | 完成（打回 1 次） | `f837c8c`；Win 实跑 ALL CHECKS PASSED |
 | P1-16b | verify 增加进程峰值 RSS 守卫（P1-17 审查中新增） | Bob 写 / Cen 收尾 | 完成 | `b54d57a`（合并 Bob）、`e59df19`、`6e3ae44`（Cen 修 2 个 Win 问题）；Mac + Win 实跑 ALL CHECKS PASSED，见第 2 节 |
@@ -130,7 +130,152 @@ Bob 的原始证据（未通过的那一版）在 `~/Projects/agents/bob/out/P1-
 | P1-11 | 改任意一个字节都会报错；两次构建哈希一致 | 达成 | `test_snapshot.py` 中 `test_load_detects_changed_parquet_byte`、`test_write_is_content_addressed_and_parquet_bytes_are_stable` |
 | P1-12 | 快照 ID、体积、行数、缺失率 | 达成 | 第 1 节"快照"、`docs/research/snapshot_stats.md` |
 | P1-13 | hypothesis：返回数据的最大时间戳 ≤ 游标 | 达成 | `tests/property/test_pit.py` |
-| P1-14 | 5 种未来函数全部检出，5 种干净写法全部通过 | 达成 | 第 2 节；合成数据和真实快照各一套 |
+| P1-14 | 5 种未来函数全部检出，5 种干净写法全部通过 | 达成（复验修复后） | 第 2 节；合成数据和真实快照各一套。真实快照这套在 Adam 验收时报错，修复和复跑见第 5 节 |
 | P1-15 | 10 个样例结果符合预期；能接进 pre-commit | 达成（hook 未启用） | `test_ast_scan.py`；hook 脚本是 `scripts/hooks/pre-commit`，但本仓库**还没有启用**，需要执行 `git config core.hooksPath scripts/hooks` |
 | P1-16 | Mac 和 Win 各跑一次，有完整输出 | 达成 | 第 2 节（P1-16b 之后在两端重跑） |
 | P1-17 | 汇报文件 + push | 达成 | 本文件；推送记录见汇报 |
+
+---
+
+## 5. P1-14 复验修复（Adam 验收打回，2026-10-01，Cen）
+
+### 问题
+
+Adam 按 verify 流程独立复跑，把 `Q6_SNAPSHOT` 设成快照**目录路径**，第 5 步的 11 项真实快照测试全部 ERROR：
+`SnapshotIntegrityError: 快照 ID 不一致：目录=/Users/.../6252e931a86bda15，清单=6252e931a86bda15，计算=6252e931a86bda15`。
+
+**根因**：`snapshot._read_manifest` 直接用 `Path(root) / snapshot_id` 定位目录。传绝对路径时，拼出来的目录恰好是对的（拼绝对路径会丢掉 root），但随后又拿**整条路径**去和清单里的 ID 比较，所以必然不一致。传相对路径（如 `data/snapshots/<id>`）会拼成 `data/snapshots/data/snapshots/<id>`，同样失败。
+
+**如实说明之前的证据覆盖到哪**：第 2 节的 Mac 结果（`Q6_SNAPSHOT=6252e931a86bda15`，37 passed）是真实跑出来的，用的是**裸 ID**。本次修复前我在 `7ef2699` 上又跑了三种写法：裸 ID 11 passed，绝对路径 11 errors，相对路径 11 errors。
+所以准确的说法是：真实快照截断测试**只在裸 ID 这一种写法下验证过**。文档没有写明只能传 ID，Adam 用最自然的写法就踩到了。
+另外，没设快照时测试默认 skip、verify 照样打印 `ALL CHECKS PASSED`，Win 端的 P1 证据就是这种"11 skipped 还是绿的"。这个默认行为本身就是假绿的来源。
+
+### 修复（`d14bb8b`）
+
+| 改动 | 文件 |
+|---|---|
+| `Q6_SNAPSHOT` 既可以是裸 ID（在 `Q6_SNAPSHOT_ROOT` 下找），也可以是快照目录路径（绝对，或相对当前目录）。ID 一律取目录名，再和清单值、重算值三方比对 | `src/q6/data/snapshot.py` `_resolve` |
+| 新增单测：绝对路径、带尾部斜杠、相对路径都能 verify/load；目录被改名时仍然报 ID 不一致。新测试在旧代码上确认会失败 | `tests/unit/test_snapshot.py` |
+| **验收模式 `Q6_REQUIRE_SNAPSHOT=1`**：缺 `Q6_SNAPSHOT` 时，11 项真实快照测试 ERROR，第 6 步退出码 1 | `tests/lookahead/test_real_snapshot.py`、`scripts/check_snapshot.py` |
+| 验收模式下，pytest 本次运行**出现任何 skip**都判失败（打印 `SKIP NOT ALLOWED: <nodeid>`），以后新增的 skip 也会被拦住 | `tests/conftest.py` |
+| verify 结尾区分模式：`ALL CHECKS PASSED (acceptance mode: ...)`，或 `ALL CHECKS PASSED (dev mode: missing snapshot is skipped, NOT valid for acceptance; ...)` | `scripts/verify.sh`、`scripts/verify.ps1` |
+| 排查中顺带发现：RSS 守卫读到峰值 0（测不到）时原先算通过，现改为 `RSS MEASUREMENT FAILED` 退出码 1，并补了单测 | `scripts/rss_guard.py`、`tests/unit/test_rss_guard.py` |
+
+**以后验收一律这样跑**：`Q6_REQUIRE_SNAPSHOT=1 Q6_SNAPSHOT=<ID 或目录> bash scripts/verify.sh`（Win：`$env:Q6_REQUIRE_SNAPSHOT="1"`）。结尾不是 `acceptance mode` 的输出不能当作验收证据。
+
+### 证据（原样）
+
+Mac，验收模式，按 Adam 的写法传绝对路径，HEAD = `d14bb8b`：
+
+```
+$ Q6_REQUIRE_SNAPSHOT=1 Q6_SNAPSHOT=/Users/guyu/Desktop/guyu-adam/quant/data/snapshots/6252e931a86bda15 bash scripts/verify.sh; echo "EXIT=$?"
+== [1/6] uv sync --frozen
+Checked 64 packages in 13ms
+TIME [1/6] uv sync --frozen: 0s
+== [2/6] uv run ruff check src tests scripts
+All checks passed!
+TIME [2/6] uv run ruff check src tests scripts: 0s
+== [3/6] uv run python -m q6.lint.lookahead_ast src
+lookahead-ast: 0 findings
+TIME [3/6] uv run python -m q6.lint.lookahead_ast src: 0s
+== [4/6] uv run pytest tests/unit tests/property
+......................................................................   [100%]
+70 passed in 5.38s
+PEAK_RSS 312.6 MiB (limit 512)
+TIME [4/6] uv run pytest tests/unit tests/property: 6s
+== [5/6] uv run pytest tests/lookahead
+.....................................                                    [100%]
+37 passed in 9.28s
+PEAK_RSS 329.5 MiB (limit 512)
+TIME [5/6] uv run pytest tests/lookahead: 10s
+== [6/6] snapshot validation
+snapshot /Users/guyu/Desktop/guyu-adam/quant/data/snapshots/6252e931a86bda15 OK
+PEAK_RSS 104.3 MiB (limit 512)
+TIME [6/6] snapshot validation: 2s
+ALL CHECKS PASSED (acceptance mode: real snapshot required)
+EXIT=0
+```
+
+第 5 步是 37 = 26 + 11，没有 skip（验收模式下有 skip 会直接失败），说明 11 项真实快照测试确实跑了并且通过。
+
+另外两种写法（只跑真实快照测试，验收模式）：
+
+```
+$ Q6_REQUIRE_SNAPSHOT=1 Q6_SNAPSHOT=6252e931a86bda15 uv run pytest tests/lookahead/test_real_snapshot.py
+11 passed in 8.30s
+$ Q6_REQUIRE_SNAPSHOT=1 Q6_SNAPSHOT=data/snapshots/6252e931a86bda15 uv run pytest tests/lookahead/test_real_snapshot.py
+11 passed in 8.34s
+```
+
+反例：Mac，验收模式，不给快照，必须失败：
+
+```
+$ env -u Q6_SNAPSHOT Q6_REQUIRE_SNAPSHOT=1 bash scripts/verify.sh; echo "EXIT=$?"
+== [4/6] uv run pytest tests/unit tests/property   70 passed in 5.55s   PEAK_RSS 312.7 MiB (limit 512)
+== [5/6] uv run pytest tests/lookahead
+.....EEEEEEEEEEE.....................                                    [100%]
+ERROR tests/lookahead/test_real_snapshot.py::test_real_shape - Failed: Q6_REQ...
+ERROR tests/lookahead/test_real_snapshot.py::test_real_leaky_detected[leaky_bfill]
+...（其余 9 项同样 ERROR，原因均为 "Q6_REQUIRE_SNAPSHOT=1 但 Q6_SNAPSHOT 未设置"）
+26 passed, 11 errors in 1.53s
+PEAK_RSS 120.5 MiB (limit 512)
+FAILED at step 5
+EXIT=1
+
+$ env -u Q6_SNAPSHOT Q6_REQUIRE_SNAPSHOT=1 uv run python scripts/check_snapshot.py; echo "EXIT=$?"
+FAIL snapshot: Q6_REQUIRE_SNAPSHOT=1 but Q6_SNAPSHOT unset
+EXIT=1
+```
+
+反例：conftest 的 skip 拦截（临时放一个 `pytest.skip("demo")` 的测试文件，跑完删除）：验收模式下打印 `SKIP NOT ALLOWED: tests/unit/test_zz_tmp_skip.py::test_x`，退出码 1；开发模式退出码 0。
+
+Mac，开发模式，不给快照（日常用法，结尾明确标出不能用于验收）：
+
+```
+26 passed, 11 skipped in 1.46s
+SKIP snapshot (Q6_SNAPSHOT unset)
+ALL CHECKS PASSED (dev mode: missing snapshot is skipped, NOT valid for acceptance; set Q6_REQUIRE_SNAPSHOT=1)
+```
+
+Win（`ssh win`，用 `git archive` 把 `d14bb8b` 打成 zip，解压到 `D:\quant6\verify_check`，跑完已删除，`Test-Path` 为 False。Win 上没有快照，所以只能验证开发模式和验收模式失败这两条路径）：
+
+```
+### dev mode
+== [4/6] ...  70 passed in 13.70s   PEAK_RSS 311.4 MiB (limit 512)
+== [5/6] ...  26 passed, 11 skipped in 0.80s   PEAK_RSS 105.9 MiB (limit 512)
+== [6/6] ...  SKIP snapshot (Q6_SNAPSHOT unset)   PEAK_RSS 80.6 MiB (limit 512)
+ALL CHECKS PASSED (dev mode: missing snapshot is skipped, NOT valid for acceptance; set Q6_REQUIRE_SNAPSHOT=1)
+EXIT=0
+### acceptance mode
+== [5/6] ...  26 passed, 11 errors in 0.87s   PEAK_RSS 106.2 MiB (limit 512)
+FAILED at step 5
+EXIT=1
+### check_snapshot.py alone, acceptance mode
+FAIL snapshot: Q6_REQUIRE_SNAPSHOT=1 but Q6_SNAPSHOT unset
+EXIT=1
+```
+
+### 同类问题排查清单（"缺数据 / 缺依赖时静默通过"）
+
+对 `src/ tests/ scripts/` 全量搜了 `skip`、`skipif`、`importorskip`、`xfail`、`except Exception`、`except ImportError`、`exists()`、`environ.get` 以及空的 `pass` 分支，逐个看过：
+
+| 位置 | 行为 | 结论 / 处理 |
+|---|---|---|
+| `tests/lookahead/test_real_snapshot.py` | 缺 `Q6_SNAPSHOT` 时 skip | **已改**：验收模式 fail（本次主修复） |
+| `scripts/check_snapshot.py` | 缺 `Q6_SNAPSHOT` 时打印 SKIP、退出码 0 | **已改**：验收模式退出码 1 |
+| `scripts/verify.sh` / `verify.ps1` | 有 skip 也打印 `ALL CHECKS PASSED` | **已改**：结尾标明 acceptance / dev 模式 |
+| `scripts/rss_guard.py` | Win 上 psutil 全程读不到时峰值为 0，算通过 | **已改**：读数 ≤0 判失败 |
+| 其他测试（unit / property / lookahead 合成数据） | 全部依赖 `tests/fixtures/` 下入库的录制数据，没有 skip、没有按文件是否存在分支 | 没问题。fixture 缺失时会直接报 FileNotFoundError |
+| `tests/conftest.py`（新增） | 验收模式下任何 skip 判失败 | 以后再出现条件 skip 也会被拦住 |
+| `src/q6/data/ingest.py` 抓取 `except Exception` | 单只失败写进 `_failures*.json`，记 ERROR 日志，`fetch_daily.py` 有失败时退出码 1 | 显式失败，不改 |
+| `src/q6/market/calendar.py` `except Exception` | 重试 3 次后抛 RuntimeError；`logout` 的 `except: pass` 只是清理 | 不改 |
+| `scripts/crosscheck.py` `except Exception` | 失败的点进报告的失败清单 | 不改 |
+| `scripts/build_snapshot.py` 中 `path.exists()` 分支 | 原始文件或因子缺失时记为"数据源缺"或 `factor_gaps`，写进统计报告（即第 3 节第 3 条那 12 只） | 显式记录，不改 |
+| `scripts/hooks/pre-commit` | 没有暂存的 .py 文件时退出 0 | 合理，不改 |
+| lightgbm 缺 libomp | 目前没有任何测试 import lightgbm，所以不存在静默跳过；P2 引入时必须在验收模式下硬失败 | 记入 P2 |
+
+### 仍然存在的局限
+
+- Win 上依然没有快照，所以 Win 端只能证明"验收模式缺快照会失败"，**证明不了真实快照测试在 Win 上能通过**。要在 Win 上做完整验收，需要先把 Release 里的快照拉到 Win（529MB，在 4G 上限以内），这件事等 Adam 决定。
+- 开发模式（不设 `Q6_REQUIRE_SNAPSHOT`）仍然允许 skip，这是有意保留的，方便没有快照的环境日常开发。区分靠结尾那行文字，所以验收必须看到 `acceptance mode`。
+- 未开工 P2，等 Adam 复验。
