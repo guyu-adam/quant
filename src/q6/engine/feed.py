@@ -40,14 +40,17 @@ def _universe_matrix(uni: pd.DataFrame, dates: pd.DatetimeIndex, symbols: tuple[
     out = np.zeros((len(dates), len(symbols)), dtype=bool)
     if uni.empty:
         return out
-    col = {s: j for j, s in enumerate(symbols)}
-    month_ends = np.sort(pd.to_datetime(uni["month_end"]).unique())
-    members = {m: [col[c] for c in g["code"] if c in col] for m, g in uni.groupby("month_end")}
+    me = pd.to_datetime(uni["month_end"]).to_numpy()
+    month_ends = np.unique(me)
     # 每个交易日用 ≤ 当日的最近一个月末成分（PIT）
     pos = np.searchsorted(month_ends, dates.values, side="right") - 1
-    for i, p in enumerate(pos):
-        if p >= 0:
-            out[i, members[pd.Timestamp(month_ends[p])]] = True
+    m_of_row = np.searchsorted(month_ends, me)
+    j_of_row = pd.Index(symbols).get_indexer(uni["code"].astype(str))
+    hit = np.zeros((len(month_ends), len(symbols)), dtype=bool)
+    ok = j_of_row >= 0
+    hit[m_of_row[ok], j_of_row[ok]] = True
+    valid = pos >= 0
+    out[valid] = hit[pos[valid]]
     return out
 
 
@@ -81,13 +84,15 @@ class SnapshotFeed:
                                  date_range=(str(a.date()), str(b.date())), codes=codes)["daily"]
 
         keys = [piece(y, ()) for y in years]  # 只读 date / code，先定面板的行列
-        dates = pd.DatetimeIndex(sorted(set().union(*(set(k["date"]) for k in keys))))
-        codes = pd.Index(sorted(set().union(*(set(k["code"].astype(str)) for k in keys))))
+        dates = pd.DatetimeIndex(np.unique(np.concatenate([pd.to_datetime(k["date"]).to_numpy()
+                                                            for k in keys])))
+        codes = pd.Index(np.unique(np.concatenate([k["code"].astype(str).to_numpy(dtype=object)
+                                                   for k in keys])))
         del keys
         arrays = {f: np.full((len(dates), len(codes)), np.nan) for f in self.fields}
         for y in years:
             df = piece(y, self.fields)
-            ri = dates.get_indexer(df["date"])
+            ri = dates.get_indexer(pd.to_datetime(df["date"]))
             ci = codes.get_indexer(df["code"].astype(str))
             for f in self.fields:
                 arrays[f][ri, ci] = df[f].to_numpy(dtype=np.float64, na_value=np.nan)

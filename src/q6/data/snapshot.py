@@ -225,10 +225,24 @@ def _validate_extras(directory: Path, files: list[dict]) -> None:
         raise SnapshotIntegrityError(f"清单外的 parquet 文件：{', '.join(extras)}")
 
 
+# 进程内哈希缓存：键含 inode / 大小 / mtime_ns，文件被改写（mtime 变）就重新算。引擎逐年分段加载时同一文件
+# 要读好几次，每次全量 sha256 占加载时间的 1/5（P2-08 剖析）。同进程内保留 mtime 的篡改不会被发现——
+# 那需要能写快照目录又刻意回拨 mtime，不在防范范围内；跨进程每次启动都重新全量校验。
+_HASH_CACHE: dict[tuple[str, int, int, int], str] = {}
+
+
+def _hash_cached(path: Path) -> str:
+    st = path.stat()
+    key = (str(path.resolve()), st.st_ino, st.st_size, st.st_mtime_ns)
+    if key not in _HASH_CACHE:
+        _HASH_CACHE[key] = _hash(path)
+    return _HASH_CACHE[key]
+
+
 def _validate_file(directory: Path, entry: dict) -> Path:
     path = directory / entry["path"]
     try:
-        actual = _hash(path)
+        actual = _hash_cached(path)
         size = path.stat().st_size
         rows = pq.ParquetFile(path).metadata.num_rows
     except (OSError, pa.ArrowException) as exc:
