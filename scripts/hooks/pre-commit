@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+files=()
+while IFS= read -r file; do
+  files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
+if ((${#files[@]} == 0)); then
+  exit 0
+fi
+uv run python -m q6.lint.lookahead_ast "${files[@]}"
