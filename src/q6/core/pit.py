@@ -10,6 +10,8 @@
 
 这一层只是"结构防线"：Python 没有真正的私有属性，故意去读 `_panel` 是挡不住的（由
 lint/lookahead_ast 扫描 `._panel` / `._data` 访问）。真正的保证来自 lint/truncation_test。
+
+锁箱期：Panel 构造时检查日期，锁定状态下含 2024-07-01 及以后的日期直接抛 LockboxError（data/lockbox.py）。
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ from collections.abc import Iterable, Mapping
 
 import numpy as np
 import pandas as pd
+
+from q6.data import lockbox
 
 
 class Panel:
@@ -35,6 +39,8 @@ class Panel:
         d = pd.DatetimeIndex(pd.to_datetime(list(dates) if not isinstance(dates, pd.Index) else dates))
         if d.hasnans:
             raise ValueError("dates 含 NaT")
+        # 第二道锁箱期防线：不论数据从哪里读来，进不了面板就到不了策略和引擎
+        lockbox.check_dates(d, "Panel")
         if len(d) > 1 and not (d[1:] > d[:-1]).all():
             raise ValueError("dates 必须严格递增（不允许重复或乱序）")
         syms = tuple(str(s) for s in symbols)

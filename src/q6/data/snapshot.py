@@ -18,7 +18,10 @@ from pathlib import Path
 
 import pandas as pd
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
+
+from q6.data import lockbox
 
 
 class SnapshotIntegrityError(ValueError):
@@ -250,6 +253,32 @@ def verify_snapshot(root: Path, snapshot_id: str | Path) -> None:
         _validate_file(directory, entry)
 
 
+# 各表用来判定锁箱期的日期列（任意一列 ≥ 锁箱起点就整行剔除）
+_LOCKBOX_COLUMNS = {
+    "daily": ("date",),
+    "calendar": ("date",),
+    "quarantine": ("date",),
+    "universe_monthly": ("month_end", "update_date"),
+}
+
+
+def _drop_lockbox(table: pa.Table, name: str) -> pa.Table:
+    """锁定状态下在 Arrow 层剔除锁箱期行，这些行不会被转成 pandas 交给调用方。"""
+    if lockbox.is_unlocked():
+        return table
+    keep = None
+    for column in _LOCKBOX_COLUMNS[name]:
+        if column not in table.column_names:
+            continue
+        values = table[column]
+        cutoff = pa.scalar(lockbox.LOCKBOX_TS.to_pydatetime(), type=pa.timestamp("ns"))
+        before = pc.fill_null(pc.less(pc.cast(values, pa.timestamp("ns")), cutoff), True)
+        keep = before if keep is None else pc.and_(keep, before)
+    if keep is None:
+        raise lockbox.LockboxError(f"表 {name} 缺少日期列 {_LOCKBOX_COLUMNS[name]}，无法执行锁箱期检查")
+    return table.filter(keep)
+
+
 def load_snapshot(
     root: Path,
     snapshot_id: str | Path,
@@ -257,7 +286,14 @@ def load_snapshot(
     years: tuple[int, int] | None = None,
     columns: tuple[str, ...] | None = None,
 ) -> dict[str, pd.DataFrame]:
-    """校验并读取指定表；daily 可按闭区间年份筛选、按列裁剪（date / code 总会读入）。"""
+    """校验并读取指定表；daily 可按闭区间年份筛选、按列裁剪（date / code 总会读入）。
+
+    锁箱期（data/lockbox.py）未解锁时：
+    - years 显式超出锁箱起点所在年 → LockboxError；
+    - 起点之后整年的 daily 分区不打开、不校验、不读取；
+    - 其余所有表都在 Arrow 层剔除日期 ≥ 锁箱起点的行（universe_monthly 同时看 month_end 和 update_date）。
+    """
+    lockbox.check_year_range(years, "load_snapshot")
     directory, _, files = _read_manifest(root, snapshot_id)
     _validate_extras(directory, files)
     unknown = set(tables) - {"daily", *_TABLE_PATHS}
@@ -273,11 +309,17 @@ def load_snapshot(
                     for item in entries
                     if years[0] <= int(Path(item["path"]).stem.split("=")[1]) <= years[1]
                 ]
+            if not lockbox.is_unlocked():
+                entries = [
+                    item
+                    for item in entries
+                    if int(Path(item["path"]).stem.split("=")[1]) <= lockbox.LOCKBOX_START.year
+                ]
             cols = None if columns is None else list(dict.fromkeys(("date", "code", *columns)))
             pieces = []
             for entry in entries:
                 path = _validate_file(directory, entry)
-                pieces.append(pq.read_table(path, columns=cols).to_pandas())
+                pieces.append(_drop_lockbox(pq.read_table(path, columns=cols), name).to_pandas())
             result[name] = pd.concat(pieces, ignore_index=True) if pieces else pd.DataFrame()
             if not result[name].empty:
                 if isinstance(result[name]["code"].dtype, pd.CategoricalDtype):
@@ -290,5 +332,5 @@ def load_snapshot(
             entry = next((item for item in files if item["path"] == rel), None)
             if entry is None:
                 raise KeyError(f"快照清单缺少请求的表 {name!r}（文件 {rel}）")
-            result[name] = pq.read_table(_validate_file(directory, entry)).to_pandas()
+            result[name] = _drop_lockbox(pq.read_table(_validate_file(directory, entry)), name).to_pandas()
     return result

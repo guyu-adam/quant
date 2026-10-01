@@ -12,6 +12,8 @@ from typing import Any, Literal
 from dotenv import dotenv_values
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from q6.data.lockbox import LOCKBOX_START
+
 
 class ConfigError(ValueError):
     """Raised when configuration input is invalid."""
@@ -64,11 +66,18 @@ class EngineCfg(BaseModel):
 class SplitCfg(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    lockbox_start: date = date(2024, 7, 1)
+    lockbox_start: date = LOCKBOX_START
     train_years: int = 3
     test_months: int = 6
     step_months: int = 6
     embargo_days: int = 5
+
+    @model_validator(mode="after")
+    def lockbox_is_fixed(self) -> SplitCfg:
+        # 锁箱期起点是常量，配置 / 覆盖项都不能挪动它（守卫读的是 data.lockbox 的常量）
+        if self.lockbox_start != LOCKBOX_START:
+            raise ValueError(f"split.lockbox_start 固定为 {LOCKBOX_START}，不允许改成 {self.lockbox_start}")
+        return self
 
 
 class Config(BaseModel):
