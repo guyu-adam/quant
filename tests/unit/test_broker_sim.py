@@ -134,3 +134,15 @@ def test_invariants_hold_for_any_sequence(ops):
         for p in s.positions.values():
             assert p.qty > 0 and 0 <= p.sellable_qty <= p.qty and p.avg_cost > 0
         assert abs(b.invariant_gap()) <= 1e-6 * max(1.0, s.equity)
+
+
+def test_settle_delisted_keeps_invariant_and_removes_position():
+    b = BrokerSim(100_000.0, datetime(2021, 1, 4, 15))
+    b.apply_fill(Fill("o", "sz.000001", Side.BUY, 1000, 10.0, datetime(2021, 1, 4, 15), commission=5.0))
+    b.mark(datetime(2021, 1, 5, 15), {"sz.000001": 12.0})
+    v = b.settle_delisted(datetime(2021, 1, 6, 15), "sz.000001", 0.25)
+    assert v == pytest.approx(1000 * 12.0 * 0.25)
+    assert "sz.000001" not in b.state.positions
+    assert abs(b.invariant_gap()) < 1e-6
+    with pytest.raises(ValueError):
+        b.settle_delisted(datetime(2021, 1, 6, 15), "sz.000001", 1.5)

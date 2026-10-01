@@ -3,12 +3,16 @@
 为什么分段：全区间 ~4700 天 × ~1600 只 × 每个字段 8 字节 ≈ 60MB / 字段，十几个字段就超过 512MB 上限。
 每段 = [该年第一天之前 warmup 根 bar, 该年最后一天]，单段约 500 行，内存可控。账户状态由引擎跨段延续。
 
+每段只读"本段内任一交易日的可投资范围里出现过的代码 ∪ 引擎要求保留的代码（持仓、在途订单）"，
+在 Arrow 层按代码过滤。全市场 ~5000 只 → ~1000 只，P2-07 实测全区间峰值 RSS 从 1.05GB 降到见 PROGRESS。
+策略只能在可投资范围内选股，所以范围外的股票不进面板不改变任何策略的输入。
+
 段内所有数据都经 load_snapshot（锁箱期在加载层拒绝）和 Panel（构造时再查一次）。
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -57,14 +61,24 @@ class SnapshotFeed:
         self.calendar = pd.DatetimeIndex(pd.to_datetime(cal[dcol])).sort_values()
         self.universe = load_snapshot(self.root, snapshot_id, ("universe_monthly",))["universe_monthly"]
 
-    def _load_panel(self, lo: pd.Timestamp, hi: pd.Timestamp) -> tuple[pd.DatetimeIndex, Panel]:
+    def _members(self, first: pd.Timestamp, last: pd.Timestamp) -> set[str]:
+        """[first, last] 内任一交易日适用的月度成分（适用 = ≤ 当日的最近一个月末）。"""
+        if self.universe.empty:
+            return set()
+        me = pd.to_datetime(self.universe["month_end"])
+        earlier = me[me <= first]
+        lo = earlier.max() if len(earlier) else me.min()  # lookahead: ok ≤段首日的最近月末，日期定位
+        return set(self.universe.loc[(me >= lo) & (me <= last), "code"].astype(str))
+
+    def _load_panel(self, lo: pd.Timestamp, hi: pd.Timestamp,
+                    codes: Iterable[str] | None = None) -> tuple[pd.DatetimeIndex, Panel]:
         """[lo, hi] 的面板。逐年读、读完一年就写进预分配数组并释放，峰值只有"一年的读取开销 + 面板本身"。"""
         years = range(lo.year, hi.year + 1)
 
         def piece(y: int, cols: tuple[str, ...]) -> pd.DataFrame:
             a, b = max(lo, pd.Timestamp(y, 1, 1)), min(hi, pd.Timestamp(y, 12, 31))
             return load_snapshot(self.root, self.snapshot_id, ("daily",), years=(y, y), columns=cols,
-                                 date_range=(str(a.date()), str(b.date())))["daily"]
+                                 date_range=(str(a.date()), str(b.date())), codes=codes)["daily"]
 
         keys = [piece(y, ()) for y in years]  # 只读 date / code，先定面板的行列
         dates = pd.DatetimeIndex(sorted(set().union(*(set(k["date"]) for k in keys))))
@@ -80,7 +94,10 @@ class SnapshotFeed:
             del df
         return dates, Panel(dates, codes, arrays, copy=False)
 
-    def segments(self, start, end, warmup: int) -> Iterator[Segment]:
+    def segments(self, start, end, warmup: int,
+                 keep: Callable[[], Iterable[str]] | None = None) -> Iterator[Segment]:
+        """keep：每段加载前调用一次，返回必须带上的代码（引擎传入持仓 + 在途订单）。生成器是惰性的，
+        所以 keep 看到的是上一段跑完之后的账户。"""
         start, end = pd.Timestamp(start), pd.Timestamp(end)
         cal = self.calendar[(self.calendar <= end)]
         run_days = cal[cal >= start]
@@ -90,7 +107,8 @@ class SnapshotFeed:
             days = run_days[run_days.year == year]
             i0 = int(cal.get_loc(days[0]))
             lo = cal[max(0, i0 - warmup)]
-            dates, panel = self._load_panel(lo, days[-1])
+            codes = self._members(days[0], days[-1]) | set(keep() if keep is not None else ())
+            dates, panel = self._load_panel(lo, days[-1], codes)
             first = int(dates.get_indexer([days[0]])[0])
             if first < 0:
                 raise RuntimeError(f"{days[0].date()} 在日历里但快照没有任何行")
