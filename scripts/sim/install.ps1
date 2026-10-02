@@ -40,9 +40,11 @@ try {
     $action = New-ScheduledTaskAction -Execute $pythonw `
         -Argument "-m q6.sim.supervisor --home `"$InstallHome`" --config `"$Config`"" `
         -WorkingDirectory $Repo
-    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
+    # 不用 $env:USERDOMAIN：ssh 会话里它是 WORKGROUP 而不是本机名，账户解析失败（Win 实测）
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $principal = New-ScheduledTaskPrincipal -UserId $me `
         -LogonType Interactive -RunLevel Limited
-    $atLogon = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+    $atLogon = New-ScheduledTaskTrigger -AtLogOn -User $me
     $repeat = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
         -RepetitionInterval (New-TimeSpan -Minutes 5) `
         -RepetitionDuration (New-TimeSpan -Days 3650)
