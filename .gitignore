@@ -31,3 +31,6 @@ data/snapshots/*/**/*.parquet
 # 系统
 .DS_Store
 Thumbs.db
+
+# 脚本输出（可重新生成）
+out/

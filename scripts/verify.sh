@@ -8,18 +8,18 @@ run_step() {
   local name="$2"
   shift 2
   step="$number"
-  printf '== [%s/6] %s\n' "$number" "$name"
+  printf '== [%s/7] %s\n' "$number" "$name"
   local started finished elapsed
   started=$(date +%s)
   if "$@"; then
     finished=$(date +%s)
     elapsed=$((finished - started))
-    printf 'TIME [%s/6] %s: %ss\n' "$number" "$name" "$elapsed"
+    printf 'TIME [%s/7] %s: %ss\n' "$number" "$name" "$elapsed"
   else
     local status=$?
     finished=$(date +%s)
     elapsed=$((finished - started))
-    printf 'TIME [%s/6] %s: %ss\n' "$number" "$name" "$elapsed"
+    printf 'TIME [%s/7] %s: %ss\n' "$number" "$name" "$elapsed"
     printf 'FAILED at step %s\n' "$number" >&2
     exit "$status"
   fi
@@ -40,12 +40,21 @@ lookahead_per_file() {
   done
 }
 
+consistency_per_file() {
+  local f
+  for f in tests/consistency/test_*.py; do
+    printf -- '-- %s\n' "$f"
+    rss_guard uv run pytest "$f" || return 1
+  done
+}
+
 run_step 1 'uv sync --frozen' uv sync --frozen
 run_step 2 'uv run ruff check src tests scripts' uv run ruff check src tests scripts
 run_step 3 'uv run python -m q6.lint.lookahead_ast src' uv run python -m q6.lint.lookahead_ast src
 run_step 4 'uv run pytest tests/unit tests/property' rss_guard uv run pytest tests/unit tests/property
 run_step 5 'uv run pytest tests/lookahead (one process per file)' lookahead_per_file
-run_step 6 'snapshot validation' rss_guard uv run python scripts/check_snapshot.py
+run_step 6 'uv run pytest tests/consistency (one process per file)' consistency_per_file
+run_step 7 'snapshot validation' rss_guard uv run python scripts/check_snapshot.py
 
 if [[ "${Q6_REQUIRE_SNAPSHOT:-}" == 1 ]]; then
   printf 'ALL CHECKS PASSED (acceptance mode: real snapshot required)\n'

@@ -24,7 +24,7 @@ function Invoke-Step {
         [scriptblock]$Command
     )
 
-    Write-Output "== [$Number/6] $Name"
+    Write-Output "== [$Number/7] $Name"
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
     try {
         & $Command
@@ -34,12 +34,12 @@ function Invoke-Step {
     }
     catch {
         $timer.Stop()
-        Write-Output ("TIME [{0}/6] {1}: {2}s" -f $Number, $Name, [math]::Round($timer.Elapsed.TotalSeconds, 3))
+        Write-Output ("TIME [{0}/7] {1}: {2}s" -f $Number, $Name, [math]::Round($timer.Elapsed.TotalSeconds, 3))
         [Console]::Error.WriteLine("FAILED at step $Number")
         exit 1
     }
     $timer.Stop()
-    Write-Output ("TIME [{0}/6] {1}: {2}s" -f $Number, $Name, [math]::Round($timer.Elapsed.TotalSeconds, 3))
+    Write-Output ("TIME [{0}/7] {1}: {2}s" -f $Number, $Name, [math]::Round($timer.Elapsed.TotalSeconds, 3))
 }
 
 $rssLimit = if ([string]::IsNullOrEmpty($env:Q6_RSS_LIMIT_MB)) { "512" } else { $env:Q6_RSS_LIMIT_MB }
@@ -61,7 +61,13 @@ Invoke-Step 5 "uv run pytest tests/lookahead (one process per file)" {
         Invoke-RssGuard @("uv", "run", "pytest", "tests/lookahead/$($f.Name)")
     }
 }
-Invoke-Step 6 "snapshot validation" {
+Invoke-Step 6 "uv run pytest tests/consistency (one process per file)" {
+    foreach ($f in (Get-ChildItem -Path tests\consistency -Filter "test_*.py" | Sort-Object Name)) {
+        Write-Output "-- tests/consistency/$($f.Name)"
+        Invoke-RssGuard @("uv", "run", "pytest", "tests/consistency/$($f.Name)")
+    }
+}
+Invoke-Step 7 "snapshot validation" {
     Invoke-RssGuard @("uv", "run", "python", "scripts/check_snapshot.py")
 }
 
