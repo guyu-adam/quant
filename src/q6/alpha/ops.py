@@ -116,9 +116,21 @@ def ts_product(x: pd.DataFrame, d: int) -> pd.DataFrame:
 
 
 def ts_corr(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:
-    """Return complete-window rolling Pearson correlation between x and y."""
+    """Return complete-window rolling Pearson correlation between x and y.
+
+    Windows where either side is (numerically) constant give NaN: pandas leaves a rounding residue in the
+    variance there and returns arbitrary values (±inf, 3.0, -6.0 observed). Residual overshoot is clipped
+    to [-1, 1].
+    """
     _same_shape(x, y)
-    return x.rolling(_window(d), min_periods=_window(d)).corr(y)
+    w = _window(d)
+    r = x.rolling(w, min_periods=w).corr(y)
+
+    def flat(z: pd.DataFrame) -> pd.DataFrame:
+        scale = z.rolling(w, min_periods=w).mean().abs() + 1e-300
+        return z.rolling(w, min_periods=w).std() <= 1e-10 * scale
+
+    return r.where(np.isfinite(r) & ~flat(x) & ~flat(y)).clip(-1.0, 1.0)
 
 
 def ts_cov(x: pd.DataFrame, y: pd.DataFrame, d: int) -> pd.DataFrame:

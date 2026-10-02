@@ -148,3 +148,12 @@ def test_vectorized_operators_match_frozen_references(name, d):
     actual = getattr(ops, name)(x, d)
     expected = globals()[f"_ref_{name}"](x, d)
     np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12, equal_nan=True)
+
+
+def test_ts_corr_zero_variance_window_is_nan_not_inf():
+    # 截面排名在窗口内不变时方差只剩舍入残差，pandas 的 rolling corr 会给出 ±inf（P2-18 合成数据实测 alpha_3）
+    x = pd.DataFrame({"a": [0.1 + 0.2, 0.3, 0.30000000000000004, 0.3, 0.3]})
+    y = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 5.0]})
+    r = ops.ts_corr(x, y, 3)
+    assert not np.isinf(r.to_numpy()).any()
+    assert r["a"].iloc[2:].isna().all()  # pandas 原样给出 0.0 / 3.0 / -6.0
