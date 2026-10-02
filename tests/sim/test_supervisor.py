@@ -102,6 +102,15 @@ def test_max_workers_respected(tmp_path):
     sup.shutdown()
 
 
+def test_backoff_keeps_its_slot(tmp_path):
+    """被杀 / 崩溃的任务退避期间不能被排队任务抢走槽位（Win 24h 实测：抢走后要等别人跑完才续跑）。"""
+    sup = _sup(tmp_path, {"c1": dict(mode="crash_once"), "q": dict(mode="stall")}, max_workers=1,
+               heartbeat_timeout=60)
+    _run_until(sup, lambda: sup.slots["c1-g1"].state == "done", timeout=10.0)
+    assert sup.slots["c1-g1"].failures == 1
+    sup.shutdown()
+
+
 def test_loop_starts_next_generation(tmp_path):
     sup = _sup(tmp_path, {"ok": dict(mode="ok")}, loop=True)
     _run_until(sup, lambda: sup.gen == 3)

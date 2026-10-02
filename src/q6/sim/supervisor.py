@@ -10,7 +10,8 @@
 - Windows 的 venv `python.exe` 是转发器，真正的解释器是它的子进程。所以一个 worker = 一棵进程树：
   心跳的 pid 属于树里任一进程即算本 worker，内存取树里各进程的最大值，杀的时候整棵树一起杀。
 - worker 退出：0 → 完成；75 → 软内存重启（立即、不计失败）；其它 → 失败，`backoff_base · 2^(k-1)` 秒后重启
-  （封顶 backoff_max）；连续失败 max_failures 次 → 标记 failed 不再拉起（supervisor.json 可见）。
+  （封顶 backoff_max，退避期间槽位保留给它）；
+  连续失败 max_failures 次 → 标记 failed 不再拉起（supervisor.json 可见）。
 - 心跳：hb 文件超过 heartbeat_timeout 秒没更新（或启动后 startup_grace 秒还没有心跳）→ 杀掉，按失败处理。
 - loop=true：一轮任务全部完成后开新一轮（run_id 后缀 -g<N>），24 小时不停；上一轮的库交给 janitor 归档。
 - 每 2 秒原子写 supervisor.json（格式见 Bob 卡 P3-COMMON / web 面板读它）。
@@ -256,13 +257,15 @@ class Supervisor:
             if age > (timeout if fresh else grace):
                 self.log.error("%s heartbeat stale %.0fs, killing pid %d", slot.run_id, age, slot.proc.pid)
                 self._on_exit(slot, self._kill(slot.proc), now, reason="heartbeat")
-        running = sum(s.state == "running" for s in self.slots.values())
+        # 退避中的任务继续占着自己的槽位：否则槽位会被排队的新任务抢走，
+        # 被杀的任务要等别人跑完才能续跑（Win 实测）
+        busy = sum(s.state in ("running", "backoff") for s in self.slots.values())
         for slot in self.slots.values():
-            if running >= self.sim["max_workers"]:
-                break
-            if slot.state == "queued" or (slot.state == "backoff" and now >= slot.retry_at):
+            if slot.state == "backoff" and now >= slot.retry_at:
                 self._start(slot, now)
-                running += 1
+            elif slot.state == "queued" and busy < self.sim["max_workers"]:
+                self._start(slot, now)
+                busy += 1
         finished = all(s.state in ("done", "failed") for s in self.slots.values())
         if self.sim["loop"] and self.slots and finished:
             self.gen += 1
