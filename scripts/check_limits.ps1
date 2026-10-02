@@ -27,6 +27,9 @@ try {
     Show-SizeCheck 'D:\quant6 total' $RootHome 4.0
     Show-SizeCheck 'D:\quant6\saves' (Join-Path $RootHome 'saves') 2.0
 
+    # Keep this file ASCII-only: PS 5.1 reads BOM-less .ps1 as ANSI (GBK), and a non-ASCII comment can swallow the next line.
+    # InJob: the 512 MB hard limit is applied by the supervisor's Job Object; children are born inside it.
+    $k32 = Add-Type -PassThru -Namespace Q6 -Name K32 -MemberDefinition '[DllImport("kernel32.dll")] public static extern bool IsProcessInJob(IntPtr p, IntPtr j, out bool r);'
     Write-Output 'q6.sim Python processes:'
     $processes = @(Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe'" |
         Where-Object { $_.CommandLine -match 'q6\.sim' })
@@ -41,7 +44,10 @@ try {
         $working = [math]::Round(($proc.WorkingSet64 / 1MB), 1)
         $peak = [math]::Round(($proc.PeakWorkingSet64 / 1MB), 1)
         $private = [math]::Round(($proc.PrivateMemorySize64 / 1MB), 1)
-        Write-Output ("PID={0} Command={1} WorkingSet64={2}MB PeakWorkingSet64={3}MB PrivateMemorySize64={4}MB" -f $proc.Id, $summary, $working, $peak, $private)
+        $inJob = $false
+        $null = $k32::IsProcessInJob($proc.Handle, [IntPtr]::Zero, [ref]$inJob)
+        Write-Output ("PID={0} Command={1} WorkingSet64={2}MB PeakWorkingSet64={3}MB PrivateMemorySize64={4}MB InJob={5}" -f $proc.Id, $summary, $working, $peak, $private, $inJob)
+        if (-not $inJob) { $failed.Add("PID $($proc.Id) is not in a Job Object") }
         if ($peak -gt 512) { $failed.Add("PID $($proc.Id) peak working set exceeds 512 MB") }
     }
 
@@ -49,9 +55,8 @@ try {
     $quantTasks = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'Quant6*' })
     if ($quantTasks.Count -eq 0) { Write-Output '(none)' }
     foreach ($task in $quantTasks) {
-        $taskState = 'Unknown'
-        try { $taskState = [string](Get-ScheduledTaskInfo -TaskName $task.TaskName -TaskPath $task.TaskPath).State } catch { }
-        Write-Output ("{0}{1} State={2}" -f $task.TaskPath, $task.TaskName, $taskState)
+        # State lives on the Get-ScheduledTask object; Get-ScheduledTaskInfo has no State (column used to be empty).
+        Write-Output ("{0}{1} State={2}" -f $task.TaskPath, $task.TaskName, $task.State)
     }
 
     $nonMicrosoft = @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskPath -notlike '\Microsoft\*' })
