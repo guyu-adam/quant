@@ -39,12 +39,13 @@ def _ref_one(job: dict, sim: dict, out: str) -> dict:
 
     from q6.engine.event import EventEngine
     from q6.engine.feed import SnapshotFeed
-    from q6.sim.worker import build_strategy, engine_config
+    from q6.sim.worker import Min5, build_strategy, engine_config
 
     t0 = time.time()
     s = build_strategy(job["strategy"], job["params"])
     feed = SnapshotFeed(sim["snapshot_root"], sim["snapshot_id"], extra_fields=s.spec.fields)
-    res = EventEngine(engine_config(job["engine"])).run(s, feed, job["start"], job["end"])
+    intraday = Min5(job["min5_root"]) if job.get("min5_root") else None  # 5 分钟执行模式（P3-13）
+    res = EventEngine(engine_config(job["engine"])).run(s, feed, job["start"], job["end"], intraday=intraday)
     d = res.daily.reset_index()
     d["date"] = d["date"].dt.strftime("%Y-%m-%d")
     d.to_parquet(Path(out) / f"{job['name']}.daily.parquet")
@@ -60,7 +61,8 @@ def _ref_one(job: dict, sim: dict, out: str) -> dict:
     else:
         peak = getattr(mi, "peak_wset", mi.rss) / 2**20
     return dict(name=job["name"], days=len(d), fills=len(f), final_equity=float(d["equity"].iloc[-1]),
-                seconds=round(time.time() - t0, 1), peak_mb=round(peak, 1))
+                seconds=round(time.time() - t0, 1), peak_mb=round(peak, 1),
+                min5_missing=res.reasons.get("MIN5_MISSING", 0))
 
 
 def cmd_ref(a) -> None:

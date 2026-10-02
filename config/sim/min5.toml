@@ -1,0 +1,51 @@
+# P3-13：5 分钟执行模式的 Mac 回测 / Win 模拟盘对齐用配置（不是选参，参数取 default.toml 网格里的一格）。
+#
+# 区间 = 5 分钟数据覆盖的区间（2023-01 ~ 2024-06，锁箱期之前）。数据缺 2023-08~10、2024-02~03 五个月
+# （manifest_min5.json complete=false）：这几个月的订单退回日线撮合并计入 MIN5_MISSING，不当成 5 分钟成交。
+# Win 上跑在单独的 home（不碰 24h 正式运行的 saves）：
+#   python -m q6.sim.supervisor --home D:\quant6\scratch-min5 --config D:\quant6\repo\config\sim\min5.toml
+
+[sim]
+snapshot_root = "../../data/snapshots"   # 相对本文件
+snapshot_id = "6252e931a86bda15"
+max_workers = 4
+seconds_per_day = 0.0
+checkpoint_every = 20
+checkpoint_secs = 30
+soft_rss_mb = 450
+mem_limit_mb = 512
+heartbeat_timeout = 120
+loop = false
+web = false
+
+[[jobs]]
+name = "lowvol-min5"
+strategy = "lowvol"
+start = "2023-01-01"
+end = "2024-06-28"
+params = { n = 30, lookback = 20 }
+min5_root = "../../data/min5"
+
+[[jobs]]
+name = "csmf-min5"
+strategy = "csmf"
+start = "2023-01-01"
+end = "2024-06-28"
+params = { n = 50 }
+min5_root = "../../data/min5"
+
+[[jobs]]
+name = "tsmom-min5"
+strategy = "tsmom"
+start = "2023-01-01"
+end = "2024-06-28"
+params = { lookback = 126, vol_target = 0.10 }
+min5_root = "../../data/min5"
+
+[[jobs]]
+name = "eqw-min5"
+strategy = "eqw"
+start = "2023-01-01"
+end = "2024-06-28"
+engine = { initial_cash = 50000000.0 }   # 约 800 只等权，100 万时每只低于 min_trade_value 一笔都不成交（同 run_benchmarks）
+min5_root = "../../data/min5"

@@ -121,8 +121,9 @@ class EventEngine:
         self.cfg = cfg or EngineConfig()
 
     def run(self, strategy: Strategy, feed: SnapshotFeed, start, end,
-            on_day: Callable[[pd.Timestamp, BrokerSim], None] | None = None) -> BacktestResult:
-        r = EngineRun(self, strategy, feed, start, end)
+            on_day: Callable[[pd.Timestamp, BrokerSim], None] | None = None,
+            intraday: Callable[[pd.Timestamp, list[str]], dict] | None = None) -> BacktestResult:
+        r = EngineRun(self, strategy, feed, start, end, intraday=intraday)
         for day in r.days():
             if on_day is not None:
                 on_day(day, r.broker)
