@@ -132,9 +132,11 @@ def test_leftover_db_removed_when_archive_already_complete(tmp_path):
     runs = layout.runs_dir(saves)
     runs.mkdir(parents=True)
     db = runs / "old.sqlite"
-    with sqlite3.connect(db) as conn:
+    # 只用 `with connect()` 不会关连接，Win 上测试自己占着文件、janitor 删不掉
+    with closing(sqlite3.connect(db)) as conn:
         conn.executescript(layout.SCHEMA)
         conn.execute("INSERT INTO meta VALUES ('status', 'done')")
+        conn.commit()
     layout.archive_dir(saves).mkdir(parents=True)
     (layout.archive_dir(saves) / "old.sqlite.zst").write_bytes(b"complete archive")
     result = janitor.run_once(saves, budget=10**9, archive_at=0)
