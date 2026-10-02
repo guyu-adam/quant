@@ -726,3 +726,197 @@ PEAK_RSS 462.1 MiB (limit 512)
 - 分支 `rewrite/v6` 已 push（`f65cfe2` + 本文档提交）；`main` 仍是 `ad76ed1`，未动。
 - Bob 的 worktree 全部已合并；没有在途任务。
 - **停在这里等 Adam 验收 P2，未开工 P3。**
+
+---
+
+## P3：Win 24h 加速模拟系统（2026-10-02，Cen 汇报；代码 HEAD 见第 6 节，等待 Adam 验收，**未开工 P4**）
+
+### 1. 做了什么
+
+| ID | 内容 | 谁 | 状态 | 关键提交 / 复核要点 |
+|---|---|---|---|---|
+| P3-00 | 共享约定 `sim/layout.py`（saves 布局、run 库表结构、心跳 / 状态文件原子写、滚动日志） | Cen | 完成 | `d1e80dd` |
+| P3-01 | Win 环境 `D:\quant6`（uv sync、快照、验收模式 verify） | Cen（P2 时已做） | 完成 | 见 P2「Win 端用真实快照跑验收模式」；本轮 verify 见第 2 节 |
+| P3-02/03 | 可续跑的 `EngineRun`（`EventEngine.run` 是它的薄包装：Mac 回测和模拟盘是**同一份逐日代码**）、SQLite 检查点、worker（限速 / 心跳 / 软内存重启） | Cen | 完成 | `4ac3175`；随机位置被杀 ×3 续跑逐位一致 |
+| P3-04 | Job Object 硬限：supervisor 自己入 Job，子进程出生即继承；每进程提交内存 ≤512MB + KILL_ON_JOB_CLOSE | Cen | 完成 | `05675bf` `43193a7` `d84f9c3`（Job 内 OpenBLAS 20 线程预分配会**卡死**在 numpy 导入，启动即设单线程） |
+| P3-05 | supervisor（队列 / 并发 / 指数退避 / 心跳超时 / loop / 单实例锁） | Cen | 完成（24h 实跑中修 2 个 bug） | `05675bf` `d84f9c3`；**`f90242c` 心跳误杀**、**`3f36cf5` 退避丢槽位**，见第 3 节 |
+| P3-06 | janitor（1.8GB 归档 / 2GB 删旧、活跃库保护） | Bob | 完成 | `3beb306` `51e00eb`；`1b5a285` 修一个只在 Win 上失败的测试（测试自己没关库连接） |
+| P3-07 | 只读面板 `sim/web.py` + `/healthz` | Bob | 完成（Cen 审查修 4 处） | `958e297` `51e00eb`；`f9be811` **只监听 127.0.0.1**（0.0.0.0 会弹防火墙对话框，属系统改动未获授权），Mac 走 ssh 隧道 |
+| P3-08 | `install.ps1` / `uninstall.ps1`（只建 `Quant6Supervisor` 用户级任务，Interactive + Limited，不存密码） | Bob 写 / Cen 审 | 完成（Cen 修 4 处） | `06b3f86` `e9f6df2` `23b1263`；`d64a996` uninstall 误杀同机其它运行 + Windows 自身任务换 GUID 导致误报，见第 3 节 |
+| P3-09 | `check_limits.ps1` | Bob | 完成（Cen 修 2 处） | `d736274`；`51ffd77` State 列为空、加每进程 `InJob` |
+| P3-10 | 24h 实跑 + 人为 kill + 资源曲线 + Mac/Win 对齐 | Cen | **运行中**（gen1 对齐见第 2 节；24h 到 10-03 17:48） | `2a1ab6c`（配置 9 类 24 任务、`sim_align.py`）、`18209b6`（资源采样） |
+| P3-12 | 5 分钟线（baostock，2023-01 ~ 2024-06，中证 800） | Bob | **部分完成**：缺 5 个月 | `b810cc7` `fb99d1b` `ef5a937`；见第 5 节局限 1 |
+| P3-13 | 5 分钟执行模式（可选）：次日订单按 5 分钟 bar 推进切片撮合 | Cen | 完成 | `f90242c` `f30f32b`；不传 5 分钟数据时日线路径逐位不变 |
+| P3-11 | 审查、本汇报 | Cen | 完成 | 本节 |
+
+P3-12 / P3-13 是任务书「模拟盘 5 分钟辅」的拆分，不在 `02-任务拆分清单.md` 原表里。
+
+### 2. 证据（真实命令与输出）
+
+**① 同一份策略代码：Mac 回测 vs Win 模拟盘（硬证据）**
+
+Mac 端用 P2 的回测入口 `EventEngine.run` 一口气跑完；Win 端是 24h 正式运行里 supervisor 拉起的 worker（限速 2 秒 / 交易日、
+中途被杀 / 重启、从 SQLite 检查点续跑）。逐任务比对日记录 9 列与成交明细 12 列，**逐位**相等才算 BITWISE。
+
+```
+# Mac 参照（P3 上一轮跑好，out/sim_align/ref）
+uv run python scripts/sim_align.py ref --config config/sim/default.toml --out out/sim_align/ref -j 3
+# Win 跑完的库拷回来比对
+scp "win:D:/quant6/saves/runs/<job>-g1.sqlite" out/sim_align/win/
+uv run python scripts/sim_align.py compare --config config/sim/default.toml --ref out/sim_align/ref --runs out/sim_align/win --gen 1
+```
+
+{{GEN1_TABLE}}
+
+`resumes` = 该任务在 Win 上从检查点续跑的次数（被杀 / supervisor 重启 / 卸载重装都算）。
+
+**② 5 分钟执行模式：Mac vs Win（`config/sim/min5.toml`，2023-01 ~ 2024-06，4 个任务）**
+
+Win 上跑在单独的 home `D:\quant6\scratch-min5`，不碰 24h 正式运行；跑完后已删除。
+
+```
+uv run python scripts/sim_align.py ref --config config/sim/min5.toml --out out/sim_align/ref_min5 -j 4
+# Win: python -m q6.sim.supervisor --home D:\quant6\scratch-min5 --config config\sim\min5.toml --run-for 900
+uv run python scripts/sim_align.py compare --config config/sim/min5.toml --ref out/sim_align/ref_min5 --runs out/sim_align/win_min5 --gen 1
+
+        job status  days_win  days_mac  daily_bitwise  fills_win  fills_mac  fills_bitwise  max_abs_equity_diff  ... verdict
+lowvol-min5   done       359       359           True        713        713           True                  0.0  ... BITWISE
+  csmf-min5   done       359       359           True        939        939           True                  0.0  ... BITWISE
+ tsmom-min5   done       359       359           True        849        849           True                  0.0  ... BITWISE
+   eqw-min5   done       359       359           True       8013       8013           True                  0.0  ... BITWISE
+
+ALIGN: 4/4 jobs bitwise identical (Mac EventEngine.run vs Win sim worker)
+```
+
+**5 分钟模式 vs 日线模式（同 4 个任务，Mac）——如实：在这些资金规模下几乎没有差别。**
+
+| 任务 | 日线终值 | 5 分钟终值 | 差 | 成交笔数（日线 / 5 分钟） | 退回日线的订单（MIN5_MISSING） |
+|---|---:|---:|---:|---:|---:|
+| lowvol（100 万） | 1,123,119 | 1,123,119 | 0.00% | 713 / 713 | 166 |
+| csmf（100 万） | 951,075 | 951,075 | 0.00% | 939 / 939 | 227 |
+| tsmom（100 万） | 1,003,852 | 1,003,852 | 0.00% | 849 / 849 | 222 |
+| eqw（5000 万） | 44,606,320 | 44,606,353 | +0.00007% | 8,011 / 8,013 | 2,605 |
+
+原因查过了，不是 5 分钟路径没生效：lowvol 的 547 笔成交时间戳是 09:35（日线模式全是 15:00），订单号是切片子单；但撮合用的是
+**第一根 5 分钟 bar 的开盘价 = 当日开盘价**，而 100 万 / 30 只的订单远小于首根 bar 成交量的 10% 参与率上限，第一根 bar 就全部成交，
+价格、数量、费用都和日线模式一样。只有 eqw 有 2 笔订单被参与率拆到 09:40。也就是说：**当前撮合模型下，5 分钟模式只在订单大到
+吃不下首根 bar 时才有区别**；它没有模拟日内价格漂移（例如按日内 VWAP 成交）。这是模型口径，不是 bug，我没有为了"显得有用"去改它。
+MIN5_MISSING 主要来自缺的 5 个月（见局限 1）。
+
+**③ 人为 kill 与恢复（24h 正式运行，Win 时间）**
+
+| 时间 | 动作 | 结果 |
+|---|---|---|
+| 19:53:29 | `taskkill /F /T` supervisor 整棵树（同时部署 `f90242c` 心跳修复） | KILL_ON_JOB_CLOSE 带走全部 worker；**19:54:00** 计划任务拉起（31 秒），12 个 worker 从检查点续跑 |
+| 19:54:31 | kill worker `csmf-n50` | 退出码 1 被记录、5 秒退避——但空出的槽位 0.07 秒内被**排队的另一个任务**占走，被杀任务直到 20:04 才续跑（**不达标**，修 `3f36cf5`） |
+| 20:01:33 | kill supervisor（部署 `3f36cf5`） | **20:04:00** 拉起（2 分 27 秒，计划任务每 5 分钟触发一次） |
+| 20:11:38 | kill worker `tsmom-lookback252-vol_target0.1` | 20:11:40.9 记录退出，20:11:46.9 重启，**10 秒**内恢复新心跳 |
+| 20:17:11 | `uninstall.ps1` | 任务删除、本 Home 进程全部结束（另见第 3 节问题 4） |
+| 20:17:30 | `install.ps1` | `Added tasks: \Quant6Supervisor`、`Removed tasks:`（空）、`INSTALL: OK`；20:17:33 supervisor 起来，worker 续跑 |
+
+DoD「kill worker 后 30 秒内恢复」：修复后实测 10 秒；supervisor 被杀后由计划任务拉起：实测 31 秒 / 2 分 27 秒（上限 5 分钟）。
+对齐表里 `resumes` 一列就是这些中断之后续跑的结果——续跑后仍逐位一致。
+
+**④ 资源上限（Win 实测）**
+
+```
+# scripts/check_limits.ps1（Adam 可直接复跑：powershell -ExecutionPolicy Bypass -File D:\quant6\repo\scripts\check_limits.ps1）
+D:\quant6 total: 1.137 GB / 4 GB PASS
+D:\quant6\saves: 0.066 GB / 2 GB PASS
+PID=54624 csmf-n30-g1.json WorkingSet64=87.4MB PeakWorkingSet64=246.7MB PrivateMemorySize64=155.1MB InJob=True
+...（28 个 q6.sim 进程，全部 InJob=True；worker 峰值工作集 206.8 ~ 246.7MB，面板 46.4MB，supervisor 42.1MB）
+\Quant6Supervisor State=Running
+CHECK_LIMITS: PASS
+
+# Job Object 硬限本身（scripts/sim_job_probe.py，Win）
+confined: True | 300MB: ok | 600MB: MemoryError
+child 600MB exit: 1 | MemoryError
+job: {'process_limit_mb': 512.0, 'peak_process_mb': 308.6, 'peak_job_mb': 308.6, 'flags': '0x2100'}
+
+# supervisor 每次启动记录的 Job（0x2100 = PROCESS_MEMORY | KILL_ON_JOB_CLOSE）
+2026-10-02 20:17:33,721 INFO supervisor pid=45596 job={'process_limit_mb': 512.0, 'peak_process_mb': 15.0, 'peak_job_mb': 15.0, 'flags': '0x2100'}
+
+# 面板（Mac 经 ssh 隧道：ssh -L 18790:127.0.0.1:8790 win）
+curl http://127.0.0.1:18790/healthz
+{'ok': True, 'supervisor_age_s': 2.898, 'workers': 12, 'stale_workers': [], 'saves_gb': 0.053943, 'max_peak_mb': 253.0}
+```
+
+{{RES_SUMMARY}}
+
+**⑤ 一键验证（验收模式，真快照，skip 判失败）**
+
+Mac（HEAD `ef5a937`，之后的提交只改 .ps1 和一个测试）：
+
+```
+MallocMediumZone=0 Q6_REQUIRE_SNAPSHOT=1 Q6_SNAPSHOT=6252e931a86bda15 bash scripts/verify.sh
+473 passed in 129.57s (0:02:09)      # [4/7] unit + property + sim
+PEAK_RSS 491.2 MiB (limit 512)       # 25 个进程里最高的一个
+ALL CHECKS PASSED (acceptance mode: real snapshot required)
+```
+
+Win：
+
+```
+# D:\quant6\repo @ 1b5a285（与 24h 运行同一目录；verify 和 24h 运行同时进行）
+set Q6_REQUIRE_SNAPSHOT=1&& set Q6_SNAPSHOT=6252e931a86bda15&& powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify.ps1
+473 passed in 106.03s (0:01:46)      # [4/7] unit + property + sim（含 Job Object 600MB 真分配测试）
+TIME [5/7] uv run pytest tests/lookahead (one process per file): 70.807s
+TIME [6/7] uv run pytest tests/consistency (one process per file): 22.68s
+ALL CHECKS PASSED (acceptance mode: real snapshot required)
+PEAK_RSS 469.3 MiB (limit 512)
+```
+
+第一次跑（`d64a996`）在第 4 步失败：`test_janitor.py::test_leftover_db_removed_when_archive_already_complete`，原因和修复见第 3 节问题 5。
+
+### 3. 24h 实跑中发现并修掉的问题（都是 Mac 上测不出来、Win 真跑才暴露的）
+
+1. **心跳误杀（`f90242c`）**：supervisor 读心跳文件时正好赶上 worker 原子替换（Win 上 `os.replace` 期间读会失败），读失败被当成
+   「从来没有心跳」，按启动时间算年龄，超过宽限期就杀。部署修复前（17:53 ~ 19:52）**共误杀 15 次**（上一轮汇报写的「2 次」是当时的数，
+   后来又发生了 13 次）；19:54 部署之后 **0 次**。每次误杀后任务都从检查点续跑，所以没有丢结果——对齐表里这些任务的 `resumes` 比较大。
+   回归测试去掉修复即失败。
+2. **退避丢槽位（`3f36cf5`）**：被杀的任务退避期间不占槽位，排队的新任务立即补位，被杀任务要等别人跑完。改为退避中的任务保留自己的槽位；
+   回归测试（1 个槽位、1 个崩溃一次的任务 + 1 个卡住的排队任务）去掉修复即失败。
+3. **check_limits 的任务 State 为空（`51ffd77`）**：`State` 在 `Get-ScheduledTask` 的对象上，`Get-ScheduledTaskInfo` 没有。
+   顺带：我第一次加的中文注释把下一行吞了——PS 5.1 按 GBK 读无 BOM 的 .ps1，这个文件保持纯 ASCII。
+4. **uninstall 误杀同机其它运行 + 误报（`d64a996`）**：①原来按「命令行包含 Home 路径」匹配进程，`D:\quant6\scratch-min5` 也包含 `D:\quant6`，
+   卸载时把已经跑完、还在 `--run-for` 等待的 5 分钟对齐 supervisor 也杀了（没有丢结果，但这是越界）。改为 `--home` / `--saves` 恰好等于本 Home。
+   ②卸载后输出 `UNINSTALL: DIFF`：差异全是 Windows 自己的 `\SoftLanding\...` 任务换了 GUID（安装前快照是 17:47 的），不是我们的任务。
+   改为非 `\Quant6*` 的差异列为 `EXTERNAL` 并照常打印、不判失败。加 `-DryRun`，在不停 24h 运行的前提下验证了匹配：
+   同时开着一个 scratch 运行时，DryRun 列出生产 28 个进程、scratch 0 个。**修复后的 uninstall 还没有真卸载过一次**（要停 24h 运行），见局限 3。
+5. **janitor 测试只在 Win 上失败（`1b5a285`）**：测试里 `with sqlite3.connect()` 只提交不关连接，Win 上测试自己占着文件。janitor 本身没问题。
+   这个测试是我 P3 上一轮加的，当时没在 Win 上跑验收模式——这次补上了。
+
+### 4. 对照 `02-任务拆分清单.md` 的 DoD
+
+| ID | DoD | 结果 |
+|---|---|---|
+| P3-01 | verify 全绿 | 见第 2 节 ⑤ |
+| P3-02 | 随机位置 kill，续跑与不中断逐位一致 | 单测 ×3 组；24h 实跑对齐见 ① |
+| P3-03 | 独立跑回放任务、心跳按时更新 | `/healthz` stale_workers=[]；supervisor.json hb_age_s < 1 秒 |
+| P3-04 | 分配 600MB 被系统终止；supervisor 记录并重启 | Job 内 600MB 分配得到 **MemoryError**（进程提交被拒，worker 以硬内存退出码退出），不是被直接终止——措辞如实；supervisor 记录 `memory` 并按失败重启（单测覆盖）。24h 实跑中没有任务撞到 512MB（峰值 ≤253MB） |
+| P3-05 | kill worker 30 秒内恢复；supervisor 被杀后由计划任务拉起 | 10 秒（修复后）；31 秒 / 2 分 27 秒 |
+| P3-06 | 灌 2.5GB 假数据后 ≤2GB；不删在用检查点 | Bob 报告 + 单测（verify 第 4 步） |
+| P3-07 | `/healthz` 返回 JSON；面板 RSS <150MB | 是；面板峰值工作集 46.4MB。**与原 DoD 不同**：不是从 `http://192.168.0.103:8790` 直接打开，而是 ssh 隧道（局域网访问要加防火墙规则，未获授权） |
+| P3-08 | 安装前后只多 Quant6 任务；卸载后完全恢复 | 安装：差集恰好 `\Quant6Supervisor`；卸载：我们的任务无残留，另有 Windows 自身任务的 GUID 变化（见第 3 节问题 4） |
+| P3-09 | 输出三项数字和达标结论 | 见 ④，PASS |
+| P3-10 | 24h 资源曲线、重启记录、续跑一致性 | 进行中：续跑一致性（gen1）见 ①；资源曲线采样中，24h 到 10-03 17:48 |
+
+### 5. 没做到 / 已知局限
+
+1. **5 分钟数据缺 5 个月**（2023-08 / 09 / 10、2024-02 / 03）：baostock 登录从 18:30 起连续超时（`10002007 网络接收错误`），我 20:00 复试仍失败。
+   `manifest_min5.json` 写的是 `complete=false`，没有报成全量。Bob 在跑 P3-12b 每 10 分钟重试（截止 23:30），恢复了会补抓；补不上就保持现状。
+   缺的月份里的订单退回日线撮合并计入 MIN5_MISSING，不当成 5 分钟成交。
+2. **5 分钟模式在当前资金规模下几乎不改变结果**（第 2 节 ②），它的价值目前只是「能跑、Mac/Win 一致」，不能当成「更真实的成交模拟」来引用。
+3. **修复后的 `uninstall.ps1` 没有真跑过**（只跑了 DryRun）：真跑会停掉 24h 运行。建议 Adam 验收时在 24h 结束后跑一次
+   `uninstall.ps1`，预期输出 `UNINSTALL: CLEAN`（可能附带 EXTERNAL 行）。
+4. **24h 还没跑完**：正式运行 10-02 17:48 开始，到 10-03 17:48。本汇报里的对齐结果只覆盖第 1 轮（gen1，约 5.5 小时），
+   之后 loop 开的 gen2+ 是同样任务的重复（用来看长时间资源曲线和稳定性），我不再等。资源曲线由 Mac 上的
+   `scripts/poll_win_resources.sh` 每 5 分钟采一行，写到 `out/p3/win_resources.csv`（不进 git），到 10-03 21:13 自动停止。
+5. **Mac 侧参照进程 RSS 超过 512MB**：`sim_align.py ref` 在 Mac 上一个进程跑完一个全区间任务，峰值 697 ~ 882MB（18 个月的 5 分钟参照也有 535 ~ 615MB）。
+   这是 Mac 上的证据脚本、不在 Job 里；512MB 硬限针对的是 Win 模拟盘进程，那边 worker 峰值 ≤253MB。如实列出，没有拆分去压它。
+6. 24h 期间我更新过 3 次 `D:\quant6\repo` 并重启 supervisor（部署上面的修复）。中途换代码这件事本身就是风险：对齐表证明了换代码前后续跑
+   的结果仍和 Mac 一次性跑完逐位一致，但如果 Adam 要一份「从头到尾同一个提交」的 24h，需要重新起一轮。
+
+### 6. 状态
+
+{{STATUS}}
