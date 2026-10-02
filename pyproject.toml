@@ -21,6 +21,7 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest", "pytest-cov", "hypothesis", "ruff"]
+report = ["matplotlib"]
 
 [build-system]
 requires = ["hatchling"]
