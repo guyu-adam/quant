@@ -42,31 +42,35 @@ def test_load_min5_filters_day_and_codes(tmp_path: Path) -> None:
 
 
 def test_real_min5_volumes_match_snapshot_daily_when_available() -> None:
-    repo = Path(__file__).resolve().parents[2]
-    root = repo / "data/min5"
-    files = sorted(root.glob("*/*.parquet"))
-    if not files:
-        pytest.skip("real minute data has not been fetched")
-    minute = pd.concat([pd.read_parquet(p) for p in files], ignore_index=True)
-    minute["date"] = pd.to_datetime(minute["date"])
-    candidates = minute.groupby(["code", "date"], sort=True)["volume"].sum().reset_index()
-    daily_path = Path("/Users/guyu/Desktop/guyu-adam/quant/data/snapshots/6252e931a86bda15")
+    """真数据：5 只 × 3 天，5 分钟量之和 = 快照日线量。只读 2023-01 那一个月（全量读入会超 512MB）。
+
+    快照按 Q6_SNAPSHOT / Q6_SNAPSHOT_ROOT 找（同 tests/lookahead）；
+    5 分钟数据在 Q6_MIN5_ROOT（默认 data/min5）。
+    验收模式下缺数据不许 skip。"""
+    import os
+
     from q6.data.snapshot import load_snapshot
 
-    daily = load_snapshot(daily_path.parent, "6252e931a86bda15", tables=("daily",))["daily"]
-    daily["date"] = pd.to_datetime(daily["date"])
-    joined = candidates.merge(
-        daily[["code", "date", "volume"]], on=["code", "date"], suffixes=("_min5", "_daily")
-    )
-    assert not joined.empty
-    selected = []
-    sample_days = pd.to_datetime(["2023-01-05", "2023-01-06", "2023-01-09"])
-    for code in sorted(joined["code"].unique())[:5]:
-        stock_days = joined[joined["code"] == code]
-        selected.append(stock_days[stock_days["date"].isin(sample_days)])
-    sample = pd.concat(selected, ignore_index=True)
-    assert len(sample) == 15, f"expected 5 codes × 3 days; found {len(sample)} rows"
-    relative = (sample["volume_min5"] - sample["volume_daily"]).abs() / sample["volume_daily"].clip(lower=1)
-    # 10-code × 5-day probe measured a 2.28290753569286e-8 maximum relative difference.
-    measured_max = 2.28290753569286e-8
-    assert float(relative.max()) <= measured_max, f"maximum relative volume difference={relative.max():.14g}"
+    snap = os.environ.get("Q6_SNAPSHOT")
+    root = Path(os.environ.get("Q6_MIN5_ROOT", "data/min5"))
+    missing = [] if snap else ["Q6_SNAPSHOT 未设置"]
+    if not (root / "2023" / "01.parquet").is_file():
+        missing.append(f"{root}/2023/01.parquet 不存在")
+    if missing:
+        if os.environ.get("Q6_REQUIRE_SNAPSHOT") == "1":
+            pytest.fail("验收模式不允许跳过：" + "；".join(missing))
+        pytest.skip("；".join(missing))
+    days = ["2023-01-05", "2023-01-06", "2023-01-09"]
+    codes = sorted(set(pd.read_parquet(root / "2023" / "01.parquet", columns=["code"])["code"]))[:5]
+    daily = load_snapshot(Path(os.environ.get("Q6_SNAPSHOT_ROOT", "data/snapshots")), snap, ("daily",),
+                          date_range=(days[0], days[-1]), columns=("volume",), codes=codes)["daily"]
+    daily = daily.set_index([daily["code"], pd.to_datetime(daily["date"]).dt.strftime("%Y-%m-%d")])["volume"]
+    rel = []
+    for day in days:
+        bars = load_min5(root, day, codes)
+        for code in codes:
+            d = float(daily[(code, day)])
+            rel.append(abs(float(bars[code]["volume"].sum()) - d) / max(d, 1.0))
+    assert len(rel) == 15
+    # 10 只 × 5 天探查实测最大相对差 2.28290753569286e-8（P3-12 报告），不放宽
+    assert max(rel) <= 2.28290753569286e-8, f"maximum relative volume difference={max(rel):.14g}"
