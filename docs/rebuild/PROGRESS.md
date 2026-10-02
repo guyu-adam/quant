@@ -282,29 +282,42 @@ EXIT=1
 
 ---
 
-## P2：市场规则 + 双引擎 + 策略库 + 评估（进行中，Cen）
+## P2：市场规则 + 双引擎 + 策略库 + 评估（2026-10-02 全部完成，Cen 汇报，等待 Adam 验收）
 
-### 任务状态（随做随更）
+阶段汇报（证据、真实输出、未完成项）见本节末尾「P2 阶段汇报」。
+
+### 任务状态
 
 | ID | 内容 | 谁 | 状态 | 提交 |
 |---|---|---|---|---|
 | P2-20a | 锁箱期硬拦截（加载层 + Panel 层，解锁必须登记），P2 准入门槛 | Cen | 完成，Adam 已认可 | `abffa03` |
 | P2-01 | 费用历史查证 | Bob | 完成（P1 期间） | `590fdf0` |
 | P2-02 | 费率模块 | Bob | 合并 | `8aca977` |
-| P2-04 | 冲击 / 滑点 | Bob | 合并 | `7d5e122` |
 | P2-03 | A 股规则：板块、涨跌停价（整数分）、手数、新股无限制天数 | Cen | 完成；真实数据全量比对见下（比 DoD 的抽 50 个更严） | `edb8f92` `02789e6` |
-| P2-12 | 因子算子 25 个 | Bob | 合并。审查实测 rolling.apply 类偏慢（ts_rank 1250×800 要 9.2s），向量化放进 P2-13 | `fa3d2a6` |
-| P2-23 | 实验登记簿（哈希链 + 跨进程锁） | Bob | 合并 + Cen 修 2 处（见下） | `8b4f80c` `83d2857` `e4579e4` |
-| P2-19 | 指标 + IC（对照 Cen 用独立纯 Python 算的已知序列，误差 <1e-9） | Bob | 合并 | `8922419` |
-| P2-13 | 因子库 30 个（16 自定义 + 14 个 Alpha101，公式逐个对过论文）+ 中性化 + 慢算子向量化（ts_rank 9.3s→0.14s） | Bob | 合并 + Cen 修 3 处（见下） | `a9ca68f` `a3b4650` |
-| P2-24A | 基准指数（价格指数，独立小表进 git）+ 情形区间表 | Bob | 合并 + Cen 补加载层测试 | `585f8f0` `fefcc2c` `aee0d23` |
-| P2-05 | 撮合（集合竞价 / bar 内 / 参与率 / 涨跌停排队） | Cen | 完成 | 见 git log |
-| P2-06 | 账户与模拟券商 | Cen | 完成 | `ee7a0c1` |
-| P2-22 | Deflated Sharpe + PBO/CSCV（对照 2012 / 2014 论文数值样例 0.913 / 0.9004） | Bob | 合并 | `dacd12e` |
-| P2-18b | ML 特征 75 个 | Bob | 合并 + Cen 修测试导入（Bob 加的 `tests/__init__.py` 让 test_alpha_library 收集失败） | `9285a56` `942887a` |
-| P2-07 | 事件引擎 + 数据源 + 时钟；真实快照全区间回测（见下） | Cen | 完成 | `074493f` `cf490c5` |
-| P2-14 | Strategy 接口冻结 + `strategy_runner`（策略接入截断测试） | Cen | 接口完成；combo.py 未做 | `074493f` `2f6755b` |
-| P2-15 / 16 / 17 | 策略①②③（规格卡由 Cen 写死） | Bob | 已派单（三张卡并行） | — |
+| P2-04 | 冲击 / 滑点 | Bob | 合并 | `7d5e122` |
+| P2-05 | 撮合（集合竞价 / bar 内 / 参与率 / 涨跌停排队），向量化单一实现 | Cen | 完成 | `50ae129` |
+| P2-06 | 账户与模拟券商（含费成本、T+1、除权除息、盯市） | Cen | 完成 | `ee7a0c1` |
+| P2-07 | 事件引擎 + 数据源 + 时钟；退市结算；真实快照全区间回测 | Cen | 完成 | `074493f` `cf490c5` |
+| P2-08 | 向量化引擎（按事件引擎 5 步逐日复刻，`run_many`，`check_weights_pit`）+ 提速 32.4s→18.0s 逐位不变 | Cen | 完成 | `a91cec9` `24feb75` |
+| P2-09 | 引擎一致性套件 3 策略 × 3 段行情（真快照，权益偏差实测最大 2.3e-16） | Bob | 合并 | `28efc05` |
+| P2-10 | 风控（盯市日亏含浮亏、回撤熔断 + 冷却、交易前检查），接入两个引擎 | Bob 写 / Cen 接入 | 合并 + Cen 修熔断期逐日复利减仓 | `561d0ac` `2f918cc` |
+| P2-11 | 组合构建（单票 / 行业 / 换手约束投影）+ HRP | Bob | 合并 | `982d2b8` |
+| P2-12 | 因子算子 25 个 | Bob | 合并 | `fa3d2a6` |
+| P2-13 | 因子库 30 个 + 中性化 + 慢算子向量化 | Bob | 合并 + Cen 修 3 处 | `a9ca68f` `a3b4650` |
+| P2-14 | Strategy 接口冻结 + `strategy_runner`；组合器 Combo | Cen / Bob | 完成 | `074493f` `2f6755b` `08d20fb` |
+| P2-15 | 策略① 时序动量 | Bob | 合并（打回 1 次：652 只全入选导致零成交，加 max_names） | `12c6abe` `1955f64` |
+| P2-16 | 策略② 截面多因子 | Bob | 合并 | `46e59ab` |
+| P2-17 | 策略③ 短期反转 + 距离法配对 | Bob | 合并（打回 1 次：配对状态按下标跨年错位） | `157f8d5` `f16fdc3` |
+| P2-18 | 策略④ ML：特征（Bob）、标签 + Purged K-Fold（Bob 写 / Cen 修 embargo 起点）、LightGBM 排序（Cen） | Cen + Bob | 完成；真快照 walk-forward 结果见阶段汇报 | `9285a56` `7eb9e27` `9a7abd0` `6ccb9bf` |
+| P2-19 | 指标 + IC | Bob | 合并 | `8922419` |
+| P2-20 | walk-forward（训练 3 年 / 测试 6 个月 / 步长 6 个月，purge + embargo，研究视界强制隔离） | Cen | 完成 | `0d98f8a` |
+| P2-21 | 敏感性分析（成本 / 撮合 / 退市回收率 / 参数网格，多进程） | Bob | 合并（打回 1 次：子进程 RSS 922MB） | `b2566df` |
+| P2-22 | Deflated Sharpe + PBO/CSCV（对照 2012 / 2014 论文数值样例） | Bob | 合并 | `dacd12e` |
+| P2-23 | 实验登记簿（哈希链 + 跨进程锁） | Bob | 合并 + Cen 修 2 处 | `8b4f80c` `83d2857` `e4579e4` |
+| P2-24 | 基准指数 + 情形区间表；宇宙等权月度再平衡（含成本）+ 买入持有 | Bob | 合并 | `585f8f0` `39bf0de` |
+| P2-25 | 核心路径覆盖率（market / engine / risk / core 逐文件 ≥90%） | Bob | 合并 | `deaad24` |
+| P2-26 | P2 审查、调试、阶段汇报 | Cen | 本节 | — |
+| （前置） | macOS 关闭 libmalloc medium 区（RSS 碎片 92%） | Cen | 完成 | `90994ba` |
 
 P2-23 审查时 Cen 修的两处：
 1. `git_dirty`：`registry/runs.jsonl` 本身入库，不排除的话第一条记录之后永远是 dirty，字段失去意义。改为 `git status --porcelain -- . ':!registry'`，加了回归测试（`test_git_dirty_ignores_registry_itself`）。
@@ -498,3 +511,218 @@ year  return   maxDD
 - 现金分红按前收再投资，未扣红利税（P2-06 已记录）。
 - 缺行的前 19 天仍按最后价估值。
 
+
+## P2 阶段汇报（2026-10-02，Cen；代码 HEAD `f65cfe2`，等待 Adam 验收，**未开工 P3**）
+
+### 1. 本轮（10-02 下午）做了什么
+
+1. **P2-18d LightGBM 排序策略**（Cen，`9a7abd0` `6ccb9bf`）：lambdarank，训练与推理共用 `feature_matrix`；特征缓存读出后过
+   `lockbox.check_dates`；标签在研究视界内现读收盘价，越过 train_end 的样本自然丢弃；`RankerConfig` 写死，**没有调参**。
+   顺带修 `ops.ts_corr`：窗口内一侧方差只剩舍入残差时 pandas 给出 ±inf / 3.0 / −6.0，改为 NaN 并裁到 [−1, 1]（加回归测试）。
+   验收模式 verify 第 4 步的 `test_no_unlisted_data_readers` 拦下了我自己脚本里两处直接读缓存 parquet——改走 `load_feature_cache`。
+2. **macOS 内存根因**（Cen，`90994ba`）：`vmmap` 显示逐年读快照后 libmalloc **medium 区常驻 245MB、实际在用 20MB（碎片 92%）**，
+   Python 堆（tracemalloc）稳定在 ~53MB、Arrow 池在用 8MB——不是泄漏。`malloc_zone_pressure_relief`、jemalloc decay=0、
+   限制 Arrow 线程数都试过，无效。`MallocMediumZone=0`（这个大小段改走 large 路径，释放即还给系统）：
+
+   | 进程（全区间 2006-01 至 2024-06） | 改前峰值 RSS | 改后 |
+   |---|---|---|
+   | 只遍历 SnapshotFeed（不跑策略） | 458MB | 303MB |
+   | 低波样板，向量引擎 | 461MB | 335MB |
+   | 截面多因子，向量引擎 | **808MB** | 404MB |
+   | ML 特征缓存构建 | 859MB（第 3 年时，已杀掉） | 408MB |
+
+   逐笔成交数不变，耗时不变；验收模式 verify 含一致性套件（≤1e-12）全部通过。libmalloc 只在进程启动时读这个变量：
+   `verify.sh` 导出；`q6/__init__.py` 给 spawn 的子进程 setdefault；**直接跑脚本时要自己 `export MallocMediumZone=0`**（见局限 2）。
+3. **P2-21 敏感性分析**（Bob，打回 1 次后合并 `b2566df`）：第一版子进程 RSS 479–922MB（Bob 如实写了未达标）。
+   原因一是上面的碎片，二是整张网格 24 个 variant 落在**同一个**子进程里 `run_many`，`workers=2` 实际没并行。返工：按 8 个一批分进程、
+   默认格按默认值查找（不再硬编码下标）、"默认格排第一"的过拟合标记只用于参数网格——退市回收率 1.0 排第一是因为它是最乐观的假设，改为如实标注。
+   合并后我在 Win 上跑出 Windows 专有 bug：`sensitivity.py` 导入了 POSIX 才有的 `resource`，第 4 步收集失败（`aef248d` 上 A/B 都 EXIT=1），
+   `f65cfe2` 修复（Win 用 psutil `peak_wset`）。
+4. **P2-25 覆盖率**（Bob，`deaad24`）：只加测试不改 src；`feed.py` 25% → 96%、`calendar.py` 68% → 91%。
+5. **基准**、**ML walk-forward** 用真快照实跑，结果在第 3 节。
+
+### 2. 证据（真实命令与输出）
+
+**最终验收（Mac，`f65cfe2`）**：`Q6_REQUIRE_SNAPSHOT=1 Q6_SNAPSHOT_ROOT=$PWD/data/snapshots Q6_SNAPSHOT=6252e931a86bda15 bash scripts/verify.sh`
+
+```
+== [4/7] uv run pytest tests/unit tests/property
+427 passed in 62.76s (0:01:02)
+（第 5 步 20 个截断测试文件、第 6 步 3 个一致性文件全部 passed，无 skipped；最高 PEAK_RSS 442.0 MiB = tests/lookahead/test_features_real.py）
+== [7/7] snapshot validation
+snapshot 6252e931a86bda15 OK
+ALL CHECKS PASSED (acceptance mode: real snapshot required)
+```
+
+**最终验收（Win，`f65cfe2`）**：`ssh win "... reset --hard origin/rewrite/v6 && powershell -File D:\quant6\run-verify.ps1"`
+
+```
+f65cfe2
+##### A: acceptance, Q6_SNAPSHOT = absolute dir
+EXIT=0
+##### B: acceptance, Q6_SNAPSHOT = bare ID
+EXIT=0
+##### C: acceptance, Q6_SNAPSHOT unset (must fail)
+EXIT=1
+```
+A 的日志：第 4 步 `427 passed in 47.31s`；第 5、6 步全部 passed、无 skipped；最高 PEAK_RSS 436.2 MiB（test_features_real）；
+`ALL CHECKS PASSED (acceptance mode: real snapshot required)`。C 在需要快照的测试处 `Failed: Q6_REQUIRE_SNAPSHOT=1 但 Q6_SNAPSHOT 未设置` 并失败（符合预期）。
+LightGBM 在 Win 上直接可用（pip 版自带 OpenMP）。
+
+**覆盖率（P2-25 DoD）**：`MallocMediumZone=0 /usr/bin/time -l uv run pytest -q tests/unit tests/property --cov=q6.market --cov=q6.engine --cov=q6.risk --cov=q6.core --cov-report=term-missing`
+
+```
+src/q6/core/clock.py             28      0   100%
+src/q6/core/pit.py              144      9    94%   45, 66, 82, 148, 180, 184, 190, 200, 235
+src/q6/core/types.py            161      6    96%   49, 72, 78, 121, 124, 208
+src/q6/engine/broker_sim.py      93      7    92%   34, 43, 49, 62-63, 70, 125
+src/q6/engine/event.py          196      9    95%   122, 136-137, 146, 168-169, 233, 252, 266
+src/q6/engine/feed.py            80      3    96%   70, 119, 121
+src/q6/engine/matching.py       150      5    97%   67, 69, 148, 150, 248
+src/q6/engine/vector.py         297     18    94%   86, 111, 135, 144-147, 162, 196, 205, 218, 244, 321, 334, 342, 359, 368, 380
+src/q6/market/calendar.py        98      9    91%   61, 64, 69-72, 76-78
+src/q6/market/fees_cn.py         86      8    91%   134, 140-142, 166, 172-173, 182
+src/q6/market/impact.py          63      3    95%   91-92, 105
+src/q6/market/rules_cn.py        98      2    98%   136, 158
+src/q6/risk/monitor.py           81      2    98%   47, 49
+src/q6/risk/pretrade.py          23      1    96%   16
+TOTAL                          1598     82    95%
+           327360512  maximum resident set size
+```
+（`__init__.py` 空文件 100% 略。）逐文件最低 91%。全包 `--cov=q6`：`TOTAL 4510 575 87%`（只报告，不要求）。
+
+**P2-21 敏感性**：`MallocMediumZone=0 /usr/bin/time -l uv run --group report python scripts/run_sensitivity.py`（Bob 实跑，原样）
+
+```
+lowvol/cost: CAGR min=0.025081 median=0.070364 max=0.087462; default=0.080848, rank 6/24; max child peak_rss_mb=390.3
+lowvol/matching: CAGR min=0.080147 median=0.080746 max=0.081817; default=0.080848, rank 6/12; max child peak_rss_mb=380.8
+lowvol/delist: CAGR min=0.072105 median=0.076507 max=0.080848; default=0.080848, rank 1/3 **DEFAULT ASSUMPTION IS THE MOST OPTIMISTIC IN THIS GRID**; recovery=1.0 CAGR over recovery=0.0 by 0.008744 (0.874 pp); max child peak_rss_mb=354.8
+lowvol/params: CAGR min=0.049611 median=0.073776 max=0.113808; default=0.080848, rank 4/9; max child peak_rss_mb=413.7
+csmf/cost: CAGR min=0.042355 median=0.132593 max=0.168237; default=0.154731, rank 6/24; max child peak_rss_mb=480.0
+csmf/matching: CAGR min=0.154631 median=0.154750 max=0.155433; default=0.154731, rank 8/12; max child peak_rss_mb=481.9
+csmf/delist: CAGR min=0.148962 median=0.151561 max=0.154731; default=0.154731, rank 1/3 **DEFAULT ASSUMPTION IS THE MOST OPTIMISTIC IN THIS GRID**; recovery=1.0 CAGR over recovery=0.0 by 0.005769 (0.577 pp); max child peak_rss_mb=424.7
+All grids peak_rss_mb max=481.9
+      446.33 real       687.93 user        52.95 sys
+           505344000  maximum resident set size
+```
+CSV 在 `docs/research/sensitivity/`，PNG 在 `out/sensitivity/`（不入库）。
+
+### 3. 结果（如实，都是**锁箱期前的研究期数据**，不是最终结论）
+
+**ML 排序 walk-forward（P2-18，唯一的样本外结果）**：训练 3 年 / 测试 6 个月 / 步长 6 个月，29 个窗口，purge 21 天，默认参数，
+登记簿第 1 条（`registry/runs.jsonl`）。
+
+```
+MallocMediumZone=0 /usr/bin/time -l uv run python scripts/rss_guard.py --limit-mb 512 -- uv run python scripts/run_ml_walkforward.py --build-cache
+cache=out/ml_cache/6252e931a86bda15_2006-01-01_2024-06-28_e10_h260_b0cfed392375 rows=335260 seconds=1882 finite_share(year file #6)=0.711
+PEAK_RSS 408.1 MiB (limit 512)
+
+MallocMediumZone=0 /usr/bin/time -l uv run python scripts/rss_guard.py --limit-mb 512 -- uv run python scripts/run_ml_walkforward.py
+ k                   train                    test  ic_mean   ic_t dates
+ 0 2007-01-04..2009-12-02 2010-01-04..2010-06-30   0.0404   1.21    12
+ 1 2007-05-28..2010-05-27 2010-07-01..2010-12-31   0.0342   0.86    12
+ 2 2007-12-03..2010-12-02 2011-01-04..2011-06-30   0.0266   0.70    12
+ 3 2008-06-02..2011-05-31 2011-07-01..2011-12-30   0.1082   5.77    12
+ 4 2008-12-01..2011-12-01 2012-01-04..2012-06-29   0.1307   5.14    12
+ 5 2009-06-01..2012-05-30 2012-07-02..2012-12-31   0.0773   3.10    13
+ 6 2009-11-30..2012-11-30 2013-01-04..2013-06-28   0.0780   2.75    11
+ 7 2010-05-27..2013-05-27 2013-07-01..2013-12-31   0.0381   1.57    12
+ 8 2010-12-02..2013-12-02 2014-01-02..2014-06-30   0.0493   1.62    12
+ 9 2011-05-30..2014-05-29 2014-07-01..2014-12-31  -0.0041  -0.17    13
+10 2011-12-02..2014-12-02 2015-01-05..2015-06-30   0.0208   0.81    12
+11 2012-05-29..2015-05-29 2015-07-01..2015-12-31   0.0951   2.68    12
+12 2012-12-03..2015-12-02 2016-01-04..2016-06-30   0.0517   2.12    12
+13 2013-05-30..2016-05-30 2016-07-01..2016-12-30   0.0915   2.92    13
+14 2013-12-02..2016-12-01 2017-01-03..2017-06-30   0.0779   3.43    12
+15 2014-06-03..2017-06-01 2017-07-03..2017-12-29   0.0964   2.79    12
+16 2014-12-01..2017-11-30 2018-01-02..2018-06-29   0.1198   4.31    12
+17 2015-06-01..2018-05-30 2018-07-02..2018-12-28  -0.0371  -0.94    12
+18 2015-11-30..2018-11-29 2019-01-02..2019-06-28   0.0988   1.90    12
+19 2016-05-30..2019-05-29 2019-07-01..2019-12-31   0.0441   1.57    13
+20 2016-12-02..2019-12-02 2020-01-02..2020-06-30   0.1059   3.50    12
+21 2017-05-31..2020-05-28 2020-07-01..2020-12-31   0.1006   1.75    12
+22 2017-12-04..2020-12-02 2021-01-04..2021-06-30   0.0016   0.04    12
+23 2018-05-31..2021-05-31 2021-07-01..2021-12-31  -0.0581  -1.23    12
+24 2018-12-03..2021-12-02 2022-01-04..2022-06-30   0.0149   0.37    12
+25 2019-05-31..2022-05-31 2022-07-01..2022-12-30  -0.0415  -1.08    13
+26 2019-12-02..2022-12-01 2023-01-03..2023-06-30  -0.0455  -1.05    11
+27 2020-06-01..2023-05-30 2023-07-03..2023-12-29   0.0530   2.40    13
+28 2020-11-30..2023-11-30 2024-01-02..2024-06-28  -0.0137  -0.41     9
+pooled OOS rank IC mean=0.0472 std=0.1253 n=349 t=7.04 (样本日间隔 10 天，标签 20 天，相邻样本标签重叠，t 值偏高)
+
+OOS 2010-01-04..2024-06-28 days=3518 windows=29 run_seconds=952
+final_equity=3,139,995 CAGR=8.26% vol=22.08% sharpe(rf=0)=0.47 maxDD=-43.27%
+fills=14211 fees=416,625 slip+impact=290,002 turnover(annual, one-way)=7.92
+reasons: {'LIMIT_QUEUE': 6, 'LOCKED_LIMIT': 5, 'NO_CASH': 51, 'NO_VOLUME': 521, 'PARTIAL': 22, 'SUSPENDED': 61}  delistings=0
+PEAK_RSS 462.1 MiB (limit 512)
+      968.33 real      1285.60 user       106.43 sys
+```
+（缓存构建那一行的 `finite_share(year file #6)` 是 `6ccb9bf` 之前的脚本版本打印的——进程启动早于该修复；缓存内容只由特征源码决定，不受影响。）
+
+同期（2010-01-04 至 2024-06-28）对照，基准来自 `MallocMediumZone=0 uv run python scripts/rss_guard.py --limit-mb 512 -- uv run python scripts/run_benchmarks.py`
+的逐年收益连乘（PEAK_RSS 309.7 MiB）：
+
+| | 同期累计 | 同期年化 |
+|---|---|---|
+| ML 排序（样本外，100 万，含费用 + 滑点 + 冲击） | +214.0% | **8.26%** |
+| 宇宙等权月度再平衡（含成本，5,000 万） | +36.7% | 2.19% |
+| 宇宙买入持有 | +43.1% | 2.52% |
+| 沪深 300 价格指数（不含分红） | −3.2% | −0.22% |
+
+逐年（ML / 沪深 300 价格）：2010 +12.95/−12.51，2011 −22.57/−25.01，2012 +21.26/+7.55，2013 +10.32/−7.65，2014 +32.60/+51.66，
+**2015 +64.26/+5.58**，2016 −2.05/−11.28，2017 +22.40/+21.78，2018 −25.52/−25.31，2019 +30.05/+36.07，2020 +33.15/+27.21，
+2021 +14.83/−5.20，2022 −26.55/−21.63，2023 −6.01/−11.38，2024H1 +0.54/+0.89。
+
+怎么读这组数（不是给结果贴金）：
+- 年化 8.26% 但**最大回撤 −43%、波动 22%、夏普 0.47**；14 年半里 5 年亏损，2011 / 2018 / 2022 三年都亏 22–27%。
+- 超额**高度集中在 2015 年**（+64% vs 宇宙等权 +39%）和 2012–2013。去掉 2015，ML 同期年化约 4.6%。
+- **信号在衰减**：最近 7 个测试窗口（2021H1–2024H1）里 5 个 rank IC ≤ 0，2021 年以后 IC 均值约 −0.013。按现在的样子拿去实盘，没有证据能赚钱。
+- 合并 t=7.04 被高估：样本日每 10 天一个、标签 20 天，相邻样本重叠；窗口级 IC 的 t 只有 29 个点。
+- 成本不小：费用 41.7 万 + 滑点冲击 29.0 万（初始 100 万），年化单边换手 7.9 倍。成本敏感性没对 ML 做（P2-21 只做了两个规则策略）。
+- 特征集（动量 / 反转 / 低波 / 流动性 / Alpha101 等）是已发表的异象，选择本身带有"事后知道哪些有效"的成分；没有市值数据，无法做规模中性，超额里可能有相当一部分是小盘暴露（宇宙等权 vs 沪深 300 也说明这一点）。
+- 基准口径不一致：宇宙等权用 5,000 万资金（冲击更高、偏保守），沪深 300 是价格指数（不含分红，约低估 1–2%/年）。
+
+**规则策略（全区间 2006-01 至 2024-06，样本内、默认参数，P2-21 网格的默认格）**：低波样板 CAGR 8.08%（maxDD −61.6%）；
+截面多因子 15.47%（maxDD **−66.9%**，费用 179 万 / 初始 100 万；成本 ×5 时 5.89%）。这两个都**没有**走 walk-forward，因子是我按经验选的，
+只能说明引擎能跑、对成本有多敏感，**不能当作策略有效的证据**。低波参数网格里默认格（n=30, lookback=60）排第 4/9，三个邻格更好（最高 11.4%），
+按规定没有据此改默认值。
+
+### 4. 对照 `02-任务拆分清单.md` 的 DoD
+
+| ID | DoD | 状态 |
+|---|---|---|
+| P2-03 | 涨跌停价与真实数据比对全部一致 | 达成（全量比对，比抽 50 个更严） |
+| P2-05/06 | 一字板 / 参与率 / 部分成交；hypothesis 不变量、成本不为 0 | 达成 |
+| P2-07 | t 收盘信号 t+1 成交有测试；样例策略完整回测 | 达成 |
+| P2-08 | 与事件引擎一致（容差定为 1e-12）；测速报告 | 达成（事件引擎样板 32.4s→18.0s；向量引擎样板全区间 16s、多因子 61s，见上表命令） |
+| P2-09 | 3 策略 × 3 段，进 CI，逐日偏差表 | 达成（verify 第 6 步） |
+| P2-10 | 纯浮亏触发日亏限额；冷却期不开新仓 | 达成 |
+| P2-11 | 约束满足；不可行时有降级路径 | 达成 |
+| P2-12/13 | 截断测试全过；docstring | 达成 |
+| P2-14 | 接口冻结，样板可接入；combo | 达成 |
+| P2-15/16/17 | 截断测试；两种引擎；配对形成期不读交易期 | 达成 |
+| P2-18 | 截断测试；purge 测试；固定 seed 两次训练逐位一致 | 达成（`test_fit_window_inside_horizon_and_deterministic`） |
+| P2-19 | 指标对照已知序列 | 达成 |
+| P2-20 | 锁箱期后数据任何路径读不到 | 达成（加载层 + 面板层 + 读数据白名单测试；本轮该测试拦下过我自己的代码） |
+| P2-21 | 热力图数据和 PNG；进程峰值 ≤512MB（附记录） | 达成（每格 `peak_rss_mb` 列在 CSV 里） |
+| P2-22 | 对照论文数值样例 | 达成 |
+| P2-23 | 每次回测追加；git sha / snapshot_id / 配置哈希 | 达成；**但** `run_ml_walkforward.py` 不经 TOML 配置，`config_hash` 为 null（参数全在 params 字段里） |
+| P2-24 | 沪深 300、中证 800 等权含成本、买入持有；区间表 | **部分**：沪深 300 / 中证 800 是价格指数；"等权含成本"是对**我们的可投资宇宙**（约 900 只）做的，不是中证 800 成分（没有历史成分表） |
+| P2-25 | 核心路径 ≥90% 行覆盖 | 达成（逐文件最低 91%） |
+
+### 5. 没做到 / 已知局限（新增部分；P1 和前文已列的不重复）
+
+1. **RSS 余量**：最紧的几处——敏感性分析 csmf 子进程 481.9MB（余 30MB）、ML walk-forward 462.1MB、`test_features_real` Mac 442–449MB / Win 436–446MB。
+   都在 512MB 以内，没有放宽上限；P3 加数据或加特征时会先撞这里。
+2. **`MallocMediumZone=0` 要靠入口进程导出**：verify.sh 已导出，`rss_guard` 会在超限时判失败；但直接 `uv run python scripts/xxx.py` 而忘了导出，
+   macOS 上 RSS 会翻倍（csmf 808MB）。Windows 不涉及（Arrow 用 system 池）。
+3. **ML 结果见第 3 节的全部保留意见**；ML 没做成本敏感性和 Deflated Sharpe（登记簿里 ML 只有 1 次试验，DSR 等 P3 有多次试验后一起算）。
+4. **登记簿第一条 `git_dirty=true`**：运行期间我在改 PROGRESS.md（只有文档），代码与 `deaad24` 一致。如实保留，没有删了重跑。
+5. `ts_corr` 的修复改变了常数窗口上的输出（±inf → NaN）。已合并的策略默认因子集都不含 `ts_corr` 类因子（一致性套件和截断测试照常通过），Alpha101 子集里用到它的因子数值会变。
+6. P2-03 规则表、退市回收率默认 1.0（实测乐观 0.58–0.87pp/年）、没有行业 / 市值 / 财务数据等，见前文。
+
+### 6. 状态
+
+- 分支 `rewrite/v6` 已 push（`f65cfe2` + 本文档提交）；`main` 仍是 `ad76ed1`，未动。
+- Bob 的 worktree 全部已合并；没有在途任务。
+- **停在这里等 Adam 验收 P2，未开工 P3。**
