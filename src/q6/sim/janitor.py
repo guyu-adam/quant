@@ -132,7 +132,10 @@ def run_once(
             if dir_size(saves) <= archive_at:
                 break
             target = archive / f"{db.stem}.sqlite.zst"
-            if target.exists():
+            if target.exists():  # 已归档完（.zst 写完才 rename）但原库上次没删掉
+                for leftover in (db, db.with_name(db.name + "-wal"), db.with_name(db.name + "-shm")):
+                    if leftover.exists():
+                        _remove(leftover, errors)
                 continue
             if _archive(db, target, errors):
                 archived.append(db.stem)

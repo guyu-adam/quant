@@ -124,3 +124,18 @@ def test_failed_file_removal_is_recorded_and_does_not_abort(
     assert first.exists()
     assert not second.exists()
     assert result["errors"] == [{"path": str(first), "error": "PermissionError: locked for test"}]
+
+
+def test_leftover_db_removed_when_archive_already_complete(tmp_path):
+    """上次压完但原库删不掉（Win 上被面板读着）：下次运行要把原库补删，而不是一直占双份空间。"""
+    saves = tmp_path / "saves"
+    runs = layout.runs_dir(saves)
+    runs.mkdir(parents=True)
+    db = runs / "old.sqlite"
+    with sqlite3.connect(db) as conn:
+        conn.executescript(layout.SCHEMA)
+        conn.execute("INSERT INTO meta VALUES ('status', 'done')")
+    layout.archive_dir(saves).mkdir(parents=True)
+    (layout.archive_dir(saves) / "old.sqlite.zst").write_bytes(b"complete archive")
+    result = janitor.run_once(saves, budget=10**9, archive_at=0)
+    assert not db.exists() and result["errors"] == []

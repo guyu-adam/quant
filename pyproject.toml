@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "hypothesis", "ruff"]
+dev = ["pytest", "pytest-cov", "hypothesis", "ruff", "httpx2"]  # httpx2：fastapi TestClient
 report = ["matplotlib"]
 
 [build-system]

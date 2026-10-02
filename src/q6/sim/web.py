@@ -33,7 +33,7 @@ def _tail(path: Path, limit: int) -> list[str]:
 
 
 def _connect(path: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+    return sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True, timeout=5)  # Win 路径用正斜杠
 
 
 def _rows(db: Path, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
@@ -84,15 +84,7 @@ def create_app(saves: str | Path) -> FastAPI:
         )
         age_text = "unknown" if age == float("inf") else f"{age:.1f}s"
         workers = sup.get("workers", [])
-        worker_rows = [
-            {
-                "run_id": f"<a href='/run/{html.escape(str(w.get('run_id', '')))}'>"
-                f"{html.escape(str(w.get('run_id', '')))}</a>",
-                **w,
-                "progress": f"{w.get('n_days', 0)}/{w.get('total_days', 0)}",
-            }
-            for w in workers
-        ]
+        worker_rows = [{**w, "progress": f"{w.get('n_days', 0)}/{w.get('total_days', 0)}"} for w in workers]
         cols = [
             "run_id",
             "state",
@@ -105,9 +97,11 @@ def create_app(saves: str | Path) -> FastAPI:
             "hb_age_s",
         ]
         rows = "".join(
-            "<tr>" + "".join(f"<td>{html.escape(str(r.get(c, '')))}</td>" for c in cols) + "</tr>"
+            "<tr>" + "".join(_link(r) if c == "run_id" else f"<td>{html.escape(str(r.get(c, '')))}</td>"
+                             for c in cols) + "</tr>"
             for r in worker_rows
         )
+        runs = _runs(s)
         size = sum(p.stat().st_size for p in s.rglob("*") if p.is_file()) if s.exists() else 0
         stale_style = "color:red" if age > 30 else ""
         restarts = sup.get("restarts_log", [])
@@ -122,6 +116,8 @@ updated: {html.escape(str(sup.get("updated_at", "")))} | age: <b style='{stale_s
 <table><thead><tr>{"".join(f"<th>{c}</th>" for c in cols)}</tr></thead>
 <tbody>{rows}</tbody></table>
 <p>Queue: {html.escape(json.dumps(sup.get("queue", []), ensure_ascii=False))}</p>
+<h2>全部回放任务（saves/runs）</h2><table><thead><tr><th>run_id</th><th>status</th><th>last day</th>
+<th>n_days</th><th>equity</th><th>fills</th></tr></thead><tbody>{runs}</tbody></table>
 <p>Done: {html.escape(json.dumps(sup.get("done", []), ensure_ascii=False))}</p>
 <h2>最近重启</h2><pre>{html.escape(json.dumps(restarts[-20:], ensure_ascii=False, indent=2))}</pre>
 <h2>Janitor</h2><pre>{html.escape(json.dumps(sup.get("janitor", {}), ensure_ascii=False, indent=2))}</pre>
@@ -151,7 +147,7 @@ updated: {html.escape(str(sup.get("updated_at", "")))} | age: <b style='{stale_s
         positions = _rows(db, "SELECT * FROM positions ORDER BY symbol")
         fills = _rows(db, "SELECT * FROM fills ORDER BY seq DESC LIMIT 200")
         events = _rows(db, "SELECT * FROM events ORDER BY seq DESC LIMIT 200")
-        logs = "\n".join(_tail(layout.logs_dir(s) / f"{run_id}.log", 200))
+        logs = "\n".join(_tail(layout.logs_dir(s) / f"worker-{run_id}.log", 200))
         return f"""<!doctype html><html><head><meta charset='utf-8'>
 <title>{html.escape(run_id)}</title></head><body><h1>{html.escape(run_id)}</h1>
 <p>status: {html.escape(meta.get("status", ""))}</p><h2>Spec</h2>
@@ -178,6 +174,7 @@ updated: {html.escape(str(sup.get("updated_at", "")))} | age: <b style='{stale_s
         stale = [w.get("run_id") for w in workers if _number(w.get("hb_age_s"), float("inf")) > 60]
         size = sum(p.stat().st_size for p in s.rglob("*") if p.is_file()) if s.exists() else 0
         peaks = [_number(w.get("peak_mb"), 0) for w in workers]
+        peaks.append(_number((sup.get("job_limits") or {}).get("peak_process_mb"), 0))  # Job 的历史峰值
         max_peak = max(peaks, default=0)
         ok = age < 30 and not stale and size / 1024**3 <= 2 and max_peak <= 512
         return {
@@ -199,6 +196,30 @@ updated: {html.escape(str(sup.get("updated_at", "")))} | age: <b style='{stale_s
         return _rows(db, "SELECT * FROM daily ORDER BY date")[::every]
 
     return app
+
+
+def _link(row: dict) -> str:
+    rid = html.escape(str(row.get("run_id", "")))
+    return f"<td><a href='/run/{rid}'>{rid}</a></td>"
+
+
+def _runs(s: Path) -> str:
+    """saves/runs 下每个库一行（只读；库打不开的显示错误，不影响整页）。"""
+    out = []
+    for db in sorted(layout.runs_dir(s).glob("*.sqlite")):
+        try:
+            with closing(_connect(db)) as conn:
+                status = conn.execute("SELECT value FROM meta WHERE key='status'").fetchone()
+                last = conn.execute("SELECT date, equity FROM daily ORDER BY date DESC LIMIT 1").fetchone()
+                n = conn.execute("SELECT COUNT(*) FROM daily").fetchone()[0]
+                nf = conn.execute("SELECT COUNT(*) FROM fills").fetchone()[0]
+            cells = [status[0] if status else "", last[0] if last else "", n,
+                     f"{last[1]:,.0f}" if last else "", nf]
+        except sqlite3.Error as e:
+            cells = [f"error: {e}", "", "", "", ""]
+        out.append("<tr>" + _link({"run_id": db.stem}) + "".join(f"<td>{html.escape(str(c))}</td>"
+                                                                 for c in cells) + "</tr>")
+    return "".join(out)
 
 
 def _timestamp(value: str) -> float:

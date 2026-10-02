@@ -27,6 +27,7 @@ def fixture_saves(tmp_path):
         conn.execute("INSERT INTO fills(seq,ts,symbol,side,qty,price) VALUES (1,'now','ABC','BUY',10,9)")
         conn.execute("INSERT INTO events(ts,kind,msg) VALUES ('now','test','event')")
     (s / "logs" / "x.log").write_text("log\n")
+    (s / "logs" / "worker-x.log").write_text("worker log line\n")
     now = datetime.now(UTC).isoformat()
     layout.write_json_atomic(
         s / "supervisor.json",
@@ -58,12 +59,23 @@ def client(fixture_saves):
 
 def test_index_has_worker(client):
     r = client.get("/")
-    assert r.status_code == 200 and "x" in r.text and "Workers" in r.text and "equity" in r.text
+    assert r.status_code == 200 and "Workers" in r.text and "equity" in r.text
+    assert "<a href='/run/x'>x</a>" in r.text  # 链接是真链接，不是被转义成文本
+    assert "<td>running</td><td>2024-01-02</td><td>2</td><td>90</td><td>1</td>" in r.text  # 全部任务表
 
 
 def test_run_has_svg_positions_and_fills(client):
     r = client.get("/run/x")
     assert r.status_code == 200 and "<polyline" in r.text and "当前持仓" in r.text and "最近成交" in r.text
+    assert "worker log line" in r.text  # worker 日志文件名是 worker-<run_id>.log
+
+
+def test_health_counts_job_peak(client, fixture_saves):
+    sup = layout.read_json(fixture_saves / "supervisor.json")
+    sup["job_limits"] = {"peak_process_mb": 600.0}
+    layout.write_json_atomic(fixture_saves / "supervisor.json", sup)
+    h = client.get("/healthz").json()
+    assert h["ok"] is False and h["max_peak_mb"] == 600.0
 
 
 def test_rejects_bad_names(client):
