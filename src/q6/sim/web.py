@@ -93,7 +93,17 @@ def create_app(saves: str | Path) -> FastAPI:
             }
             for w in workers
         ]
-        cols = ["run_id", "state", "progress", "day", "rss_mb", "peak_mb", "restarts", "hb_age_s"]
+        cols = [
+            "run_id",
+            "state",
+            "progress",
+            "day",
+            "equity",
+            "rss_mb",
+            "peak_mb",
+            "restarts",
+            "hb_age_s",
+        ]
         rows = "".join(
             "<tr>" + "".join(f"<td>{html.escape(str(r.get(c, '')))}</td>" for c in cols) + "</tr>"
             for r in worker_rows

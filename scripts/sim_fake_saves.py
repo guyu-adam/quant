@@ -84,6 +84,7 @@ def main():
                 "started_at": now,
                 "rss_mb": 90.0,
                 "peak_mb": 110.0,
+                "equity": 1_300_000,
                 "hb_age_s": 0.4,
                 "day": "2023-03-18",
                 "n_days": 3000,

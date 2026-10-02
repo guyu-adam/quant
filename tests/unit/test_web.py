@@ -58,7 +58,7 @@ def client(fixture_saves):
 
 def test_index_has_worker(client):
     r = client.get("/")
-    assert r.status_code == 200 and "x" in r.text and "Workers" in r.text
+    assert r.status_code == 200 and "x" in r.text and "Workers" in r.text and "equity" in r.text
 
 
 def test_run_has_svg_positions_and_fills(client):
