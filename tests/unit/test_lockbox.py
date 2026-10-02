@@ -234,6 +234,11 @@ ALLOWED_READERS = {
         "（test_lgbm_ranker::test_cache_read_beyond_research_horizon_raises）",
     "scripts/sim_align.py":
         "P3 对齐比对读自己写的 Mac 参照结果（EventEngine.run 的输出）；读后经 lockbox.check_dates",
+    "src/q6/data/min5.py":
+        "P3 5 分钟线读取：读之前 lockbox.check_dates（test_min5::test_load_min5_rejects_lockbox_day）",
+    "scripts/fetch_5min.py":
+        "P3 5 分钟线抓取：读快照成分表定代码、读自己写的 parquet 生成 manifest、探查时读 2023 日线核对量额；"
+        "抓取区间写死 2023-01-01 ~ 2024-06-28，不进入任何回测计算",
 }
 READERS = {"read_parquet", "read_table", "ParquetFile", "ParquetDataset", "dataset", "read_feather"}
 
