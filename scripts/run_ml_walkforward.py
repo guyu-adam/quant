@@ -44,11 +44,15 @@ def feed(extra=lr.FIELDS) -> SnapshotFeed:
 def build_cache() -> None:
     t = time.perf_counter()
     lr.build_feature_cache(feed(), START, END, CACHE, sample_every=SAMPLE_EVERY)
-    n = sum(len(pd.read_parquet(p, columns=["date"])) for p in sorted(CACHE.glob("year=*.parquet")))
-    sample = pd.read_parquet(sorted(CACHE.glob("year=*.parquet"))[5])
-    finite = np.isfinite(sample[list(FEATURE_NAMES)].to_numpy()).mean()
-    print(f"cache={CACHE} rows={n} seconds={time.perf_counter() - t:.0f} "
-          f"finite_share(year file #6)={finite:.3f}")
+    secs = time.perf_counter() - t
+    # 经 load_feature_cache 读（过锁箱期检查），逐年读，不一次载入全部
+    rows = {y: lr.load_feature_cache(CACHE, f"{y}-01-01", f"{y}-12-31") for y in (2008, 2016, 2023)}
+    n = sum(len(lr.load_feature_cache(CACHE, f"{y}-01-01", f"{y}-12-31"))
+            for y in range(pd.Timestamp(START).year, pd.Timestamp(END).year + 1))
+    print(f"cache={CACHE} rows={n} seconds={secs:.0f}")
+    for y, df in rows.items():
+        finite = np.isfinite(df[list(FEATURE_NAMES)].to_numpy()).mean()
+        print(f"  {y}: dates={df['date'].nunique()} rows={len(df)} finite_share={finite:.3f}")
 
 
 def rank_ic(pred: np.ndarray, kept: pd.DataFrame) -> pd.Series:

@@ -229,6 +229,9 @@ ALLOWED_READERS = {
     "scripts/crosscheck.py": "P1 跨源比价（数据质量检查）",
     "src/q6/data/benchmarks.py":
         "基准指数小表；读后经 snapshot._drop_lockbox 剔除锁箱期（test_benchmarks 有测试 + 变异验证）",
+    "src/q6/ml/lgbm_ranker.py":
+        "ML 特征缓存（自己写的派生数据）；load_feature_cache 读后经 lockbox.check_dates"
+        "（test_lgbm_ranker::test_cache_read_beyond_research_horizon_raises）",
 }
 READERS = {"read_parquet", "read_table", "ParquetFile", "ParquetDataset", "dataset", "read_feather"}
 
