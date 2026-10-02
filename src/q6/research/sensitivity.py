@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import itertools
 import multiprocessing
-import resource
 import sys
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
@@ -44,11 +43,17 @@ def grid(base: EngineConfig, **axes) -> list[EngineConfig]:
 
 
 def _rss_mb() -> float:
-    current = psutil.Process().memory_info().rss
-    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    # macOS reports bytes; Linux reports KiB.
-    peak_bytes = peak if sys.platform == "darwin" else peak * 1024
-    return max(current, peak_bytes) / (1024 * 1024)
+    info = psutil.Process().memory_info()
+    if sys.platform == "win32":
+        # resource 模块只有 POSIX 有；Windows 用 psutil 的峰值工作集（字节）
+        peak_bytes = info.peak_wset
+    else:
+        import resource
+
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # macOS reports bytes; Linux reports KiB.
+        peak_bytes = peak if sys.platform == "darwin" else peak * 1024
+    return max(info.rss, peak_bytes) / (1024 * 1024)
 
 
 def _run_group(payload):
