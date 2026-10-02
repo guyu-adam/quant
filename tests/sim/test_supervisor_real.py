@@ -95,6 +95,13 @@ end = "{END}"
             _wait(lambda: not psutil.pid_exists(pid), 15, "supervisor 死后 worker 被 Job 一并结束")
         sup = _start_sup(tmp_path, cfg)  # 计划任务重新拉起
         _wait(lambda: _hb(saves).get("status") == "done", 300, "完成")
+        # supervisor 主循环在跑（Win 上曾因 Job 内 OpenBLAS 多线程缓冲区让 numpy 导入卡死）
+        _, st = _wait(lambda: (x := layout.read_json(saves / "supervisor.json")) and x.get("done") and x, 30,
+                      "supervisor.json 记录任务完成")
+        if sys.platform == "win32":
+            assert st["job_limits"]["process_limit_mb"] == 512.0
+            assert 0 < st["job_limits"]["peak_process_mb"] <= 512.0
+            print(f"job_limits={st['job_limits']}")
     finally:
         sup.kill()
         sup.wait(10)

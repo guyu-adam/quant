@@ -5,6 +5,10 @@
 - 单实例：saves/supervisor.lock 上的独占文件锁。计划任务每 5 分钟补拉一次，已在跑就立刻退出（退出码 0）。
 - Windows 上先 `limits_win.confine_self(mem_limit_mb)`：自己和全部子进程都受 Job Object 每进程 512MB 硬限。
 - 子进程：`CREATE_NO_WINDOW`（不在老板桌面上弹黑框）、低于正常优先级、BLAS / numba 单线程。
+  supervisor 自己也在导入 numpy 之前设单线程：Job 里 OpenBLAS 按 20 核预分配线程缓冲区会超出提交限制，
+  而且表现是 numpy 导入时**卡死**（blas_fpe_check）而不是报错——Win 实测。
+- Windows 的 venv `python.exe` 是转发器，真正的解释器是它的子进程。所以一个 worker = 一棵进程树：
+  心跳的 pid 属于树里任一进程即算本 worker，内存取树里各进程的最大值，杀的时候整棵树一起杀。
 - worker 退出：0 → 完成；75 → 软内存重启（立即、不计失败）；其它 → 失败，`backoff_base · 2^(k-1)` 秒后重启
   （封顶 backoff_max）；连续失败 max_failures 次 → 标记 failed 不再拉起（supervisor.json 可见）。
 - 心跳：hb 文件超过 heartbeat_timeout 秒没更新（或启动后 startup_grace 秒还没有心跳）→ 杀掉，按失败处理。
@@ -184,23 +188,45 @@ class Supervisor:
         slot.state, slot.retry_at = "backoff", now + delay
         self.log.warning("%s exited %s (%s); retry in %.0fs", slot.run_id, code, why, delay)
 
+    @staticmethod
+    def _tree(p: subprocess.Popen) -> list:
+        import psutil
+
+        try:
+            root = psutil.Process(p.pid)
+            return [root, *root.children(recursive=True)]
+        except psutil.Error:
+            return []
+
     def _kill(self, p: subprocess.Popen) -> int:
+        import psutil
+
+        for q in reversed(self._tree(p)):  # 先杀子进程（真解释器），再杀转发器
+            try:
+                q.kill()
+            except psutil.Error:
+                pass
         p.kill()
         try:
             return p.wait(timeout=10)
         except subprocess.TimeoutExpired:
             return -9
 
-    def _measure(self, slot: Slot) -> None:
+    def _measure(self, slot: Slot) -> set[int]:
         import psutil
 
-        try:
-            mi = psutil.Process(slot.proc.pid).memory_info()
-        except (psutil.Error, AttributeError):
-            return
-        slot.rss_mb = mi.rss / 2**20
-        peak = getattr(mi, "peak_wset", mi.rss) / 2**20
-        slot.peak_mb = max(slot.peak_mb, peak, slot.rss_mb)
+        pids, rss, peak = set(), 0.0, 0.0
+        for q in self._tree(slot.proc):
+            try:
+                mi = q.memory_info()
+            except psutil.Error:
+                continue
+            pids.add(q.pid)
+            rss = max(rss, mi.rss / 2**20)
+            peak = max(peak, getattr(mi, "peak_wset", mi.rss) / 2**20)
+        slot.rss_mb = rss
+        slot.peak_mb = max(slot.peak_mb, peak, rss)
+        return pids
 
     # ------------------------------------------------------------ 主循环
     def tick(self) -> None:
@@ -213,9 +239,9 @@ class Supervisor:
             if code is not None:
                 self._on_exit(slot, code, now)
                 continue
-            self._measure(slot)
+            pids = self._measure(slot) | {slot.proc.pid}
             slot.hb = layout.read_json(layout.hb_dir(self.saves) / f"{slot.run_id}.json", {}) or {}
-            fresh = slot.hb.get("pid") == slot.proc.pid
+            fresh = slot.hb.get("pid") in pids
             age = now - slot.hb["ts"] if fresh else now - slot.started_at
             if age > (timeout if fresh else grace):
                 self.log.error("%s heartbeat stale %.0fs, killing pid %d", slot.run_id, age, slot.proc.pid)
@@ -272,7 +298,7 @@ class Supervisor:
                 workers.append(dict(
                     run_id=s.run_id, pid=s.proc.pid if s.proc else None, state=s.state, restarts=s.restarts,
                     last_exit=s.last_exit, started_at=_iso(s.started_at) if s.started_at else None,
-                    rss_mb=round(s.rss_mb, 1), peak_mb=round(s.peak_mb, 1),
+                    worker_pid=hb.get("pid"), rss_mb=round(s.rss_mb, 1), peak_mb=round(s.peak_mb, 1),
                     hb_age_s=round(now - hb["ts"], 1) if hb.get("ts") else None, day=hb.get("day"),
                     n_days=hb.get("n_days"), total_days=hb.get("total_days"), equity=hb.get("equity")))
         layout.write_json_atomic(self.saves / "supervisor.json", dict(
@@ -307,6 +333,7 @@ def main(argv=None) -> int:
         print("another supervisor is running", file=sys.stderr)
         return 0
     sim, _ = load_config(Path(a.config))
+    os.environ.update(_CHILD_ENV)  # 必须在任何 numpy 导入之前（见模块说明）
     limits_win.confine_self(int(sim["mem_limit_mb"]))
     sup = Supervisor(home, Path(a.config).resolve())
     sup.log.info("supervisor pid=%d job=%s", os.getpid(), limits_win.job_limits())
