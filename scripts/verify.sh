@@ -25,6 +25,10 @@ run_step() {
   fi
 }
 
+# macOS libmalloc 的 medium 区（约 32KB–8MB 的块：逐年面板数组、parquet 列缓冲）释放后不把页还给系统，
+# 全区间回测实测碎片率 92%。关掉后这些块走 large 路径（释放即归还）。只在进程启动时读取，所以在这里导出。
+export MallocMediumZone="${MallocMediumZone:-0}"
+
 rss_limit="${Q6_RSS_LIMIT_MB:-512}"
 rss_guard() {
   uv run python scripts/rss_guard.py --limit-mb "$rss_limit" -- "$@"
