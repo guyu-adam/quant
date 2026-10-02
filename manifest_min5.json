@@ -1,0 +1,123 @@
+{
+  "created_at": "2026-10-02T10:29:12.272044+00:00",
+  "start": "2023-01-01",
+  "end": "2024-06-28",
+  "rows": 12198029,
+  "codes": 970,
+  "requested_codes": 970,
+  "files": [
+    {
+      "path": "data/min5/2023/01.parquet",
+      "rows": 739152,
+      "codes": 964,
+      "date_min": "2023-01-03",
+      "date_max": "2023-01-31",
+      "sha256": "1d35f90d879d9d6b4ddd8fb054bd218022775650725d20fb14d722dfe87ce814"
+    },
+    {
+      "path": "data/min5/2023/02.parquet",
+      "rows": 926208,
+      "codes": 966,
+      "date_min": "2023-02-01",
+      "date_max": "2023-02-28",
+      "sha256": "8a30ed340a5ce479b616f717c57f34be4f0318bf62c75b43523e000088d88e34"
+    },
+    {
+      "path": "data/min5/2023/03.parquet",
+      "rows": 1066608,
+      "codes": 967,
+      "date_min": "2023-03-01",
+      "date_max": "2023-03-31",
+      "sha256": "391e374d00c8ec8c9f291f1c0f7bcf43844e68fc54c85efbc7665443521d4ddb"
+    },
+    {
+      "path": "data/min5/2023/04.parquet",
+      "rows": 883152,
+      "codes": 969,
+      "date_min": "2023-04-03",
+      "date_max": "2023-04-28",
+      "sha256": "8ef02f171c75ff5a8e61e671256ba53f079ab264732bb1ef4bb63a917dc26fe8"
+    },
+    {
+      "path": "data/min5/2023/05.parquet",
+      "rows": 928800,
+      "codes": 969,
+      "date_min": "2023-05-04",
+      "date_max": "2023-05-31",
+      "sha256": "685fe3cc978a1a55729094a7c074246c04d11b746be694b528461d2d7c39476b"
+    },
+    {
+      "path": "data/min5/2023/06.parquet",
+      "rows": 926880,
+      "codes": 968,
+      "date_min": "2023-06-01",
+      "date_max": "2023-06-30",
+      "sha256": "efa3240e5a5abca4e9530e3de2b889f329f931a64ce030824249b228d4b8e2bf"
+    },
+    {
+      "path": "data/min5/2023/07.parquet",
+      "rows": 974544,
+      "codes": 967,
+      "date_min": "2023-07-03",
+      "date_max": "2023-07-31",
+      "sha256": "84cfc80a642f14c71bc33cf2974e43937a664b833f600b0e16b990c237a0b22c"
+    },
+    {
+      "path": "data/min5/2023/11.parquet",
+      "rows": 1022208,
+      "codes": 968,
+      "date_min": "2023-11-01",
+      "date_max": "2023-11-30",
+      "sha256": "d4a5036434d64d86f662ad0bfa4238362768f2502b6458d70f6255da3a067f4f"
+    },
+    {
+      "path": "data/min5/2023/12.parquet",
+      "rows": 975448,
+      "codes": 968,
+      "date_min": "2023-12-01",
+      "date_max": "2023-12-29",
+      "sha256": "0535c33c2d5352566c8a850b2425fa156c4b997291ef0f589be62cc6bc4c6d02"
+    },
+    {
+      "path": "data/min5/2024/01.parquet",
+      "rows": 1021296,
+      "codes": 968,
+      "date_min": "2024-01-02",
+      "date_max": "2024-01-31",
+      "sha256": "8b932c2492a556bcb2969d5e14715d70bcdd52c3ce2ed40f2997bf58f8c88b68"
+    },
+    {
+      "path": "data/min5/2024/04.parquet",
+      "rows": 927696,
+      "codes": 967,
+      "date_min": "2024-04-01",
+      "date_max": "2024-04-30",
+      "sha256": "78c6ae604427d85b0b46ce6015dc9d8548277bc76a8e69ee30d788d9a17549b4"
+    },
+    {
+      "path": "data/min5/2024/05.parquet",
+      "rows": 926496,
+      "codes": 966,
+      "date_min": "2024-05-06",
+      "date_max": "2024-05-31",
+      "sha256": "82fdcc608fe92b55d67e8e82468639df4d7488729a0b5b33f5a6863c168d7aff"
+    },
+    {
+      "path": "data/min5/2024/06.parquet",
+      "rows": 879541,
+      "codes": 965,
+      "date_min": "2024-06-03",
+      "date_max": "2024-06-28",
+      "sha256": "d79c275a51c1fd4cd784c275c3f91a217f1040f04df73f99114e90d4e51b886a"
+    }
+  ],
+  "failures": [],
+  "missing_months": [
+    "2023-08",
+    "2023-09",
+    "2023-10",
+    "2024-02",
+    "2024-03"
+  ],
+  "complete": false
+}
