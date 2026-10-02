@@ -18,5 +18,6 @@ def alloc(mb):
 
 print("confined:", h is not None, "| 300MB:", alloc(300), "| 600MB:", alloc(600))
 child = subprocess.run([sys.executable, "-c", "b = bytearray(600 * 2**20)"], capture_output=True, text=True)
-print("child 600MB exit:", child.returncode, "|", child.stderr.strip().splitlines()[-1] if child.stderr else "")
+last = child.stderr.strip().splitlines()[-1] if child.stderr else ""
+print("child 600MB exit:", child.returncode, "|", last)
 print("job:", limits_win.job_limits())

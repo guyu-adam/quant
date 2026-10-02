@@ -55,7 +55,7 @@ consistency_per_file() {
 run_step 1 'uv sync --frozen' uv sync --frozen
 run_step 2 'uv run ruff check src tests scripts' uv run ruff check src tests scripts
 run_step 3 'uv run python -m q6.lint.lookahead_ast src' uv run python -m q6.lint.lookahead_ast src
-run_step 4 'uv run pytest tests/unit tests/property' rss_guard uv run pytest tests/unit tests/property
+run_step 4 'uv run pytest tests/unit tests/property tests/sim' rss_guard uv run pytest tests/unit tests/property tests/sim
 run_step 5 'uv run pytest tests/lookahead (one process per file)' lookahead_per_file
 run_step 6 'uv run pytest tests/consistency (one process per file)' consistency_per_file
 run_step 7 'snapshot validation' rss_guard uv run python scripts/check_snapshot.py

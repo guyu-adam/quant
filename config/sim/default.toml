@@ -1,0 +1,90 @@
+# P3 Win 24h 加速模拟盘的正式配置（install.ps1 默认用它）。
+#
+# 参数网格只为证明"多策略 × 多参数并行"能跑，**不是选参**：不按模拟盘结果挑参数，汇报里列全部任务，
+# 不单独挑最好的一格。区间止于锁箱期之前（2024-07-01 起的数据加载层直接拒绝）。
+# 1 个交易日 = seconds_per_day 秒；全区间 4491 个交易日 × 2 秒 ≈ 2.5 小时一个任务，
+# 24 个任务 / 12 个 worker ≈ 5 小时一轮，loop=true 跑完开下一轮（run_id 后缀 -g<N>）。
+
+[sim]
+snapshot_root = "../../data/snapshots"   # 相对本文件
+snapshot_id = "6252e931a86bda15"
+max_workers = 12
+seconds_per_day = 2.0
+checkpoint_every = 20
+checkpoint_secs = 30
+soft_rss_mb = 450
+mem_limit_mb = 512
+heartbeat_timeout = 120
+loop = true
+web = true
+web_host = "0.0.0.0"
+web_port = 8790
+
+[[jobs]]
+name = "lowvol"
+strategy = "lowvol"
+start = "2006-01-01"
+end = "2024-06-28"
+grid = { n = [10, 30, 60], lookback = [20, 60] }
+
+[[jobs]]
+name = "csmf"
+strategy = "csmf"
+start = "2006-01-01"
+end = "2024-06-28"
+grid = { n = [30, 50, 100] }
+
+[[jobs]]
+name = "tsmom"
+strategy = "tsmom"
+start = "2006-01-01"
+end = "2024-06-28"
+grid = { lookback = [126, 252], vol_target = [0.10, 0.15] }
+
+[[jobs]]
+name = "reversal"
+strategy = "reversal"
+start = "2006-01-01"
+end = "2024-06-28"
+grid = { lookback = [5, 10], every = [5, 10] }
+
+[[jobs]]
+name = "pairs"
+strategy = "pairs"
+start = "2006-01-01"
+end = "2024-06-28"
+grid = { entry = [1.5, 2.0, 2.5] }
+
+[[jobs]]
+name = "eqw"
+strategy = "eqw"
+start = "2006-01-01"
+end = "2024-06-28"
+
+[[jobs]]
+name = "buyhold"
+strategy = "buyhold"
+start = "2006-01-01"
+end = "2024-06-28"
+
+[[jobs]]
+name = "lowvol-risk"
+strategy = "lowvol"
+start = "2006-01-01"
+end = "2024-06-28"
+engine = { risk = { max_drawdown = -0.20, daily_loss_limit = -0.03 } }
+
+[[jobs]]
+name = "combo3"
+strategy = "combo"
+start = "2006-01-01"
+end = "2024-06-28"
+[[jobs.params.members]]
+strategy = "lowvol"
+weight = 1.0
+[[jobs.params.members]]
+strategy = "csmf"
+weight = 1.0
+[[jobs.params.members]]
+strategy = "tsmom"
+weight = 1.0

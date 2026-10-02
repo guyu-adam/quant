@@ -105,7 +105,7 @@ def ckpt_roundtrip(state):
 
 
 def test_resume_with_risk_monitor_and_costs(tmp_path):
-    over = dict(risk=dict(max_drawdown=0.08, daily_loss_limit=0.02), match=dict(slippage_bp=8.0))
+    over = dict(risk=dict(max_drawdown=-0.08, daily_loss_limit=-0.02), match=dict(slippage_bp=8.0))
     ref = _reference(over)
     assert ref.risk_events  # 风控确实触发过
     spec = _spec("r", engine=over)

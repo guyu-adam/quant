@@ -53,7 +53,7 @@ function Invoke-RssGuard {
 Invoke-Step 1 "uv sync --frozen" { & $uv sync --frozen }
 Invoke-Step 2 "uv run ruff check src tests scripts" { & $uv run ruff check src tests scripts }
 Invoke-Step 3 "uv run python -m q6.lint.lookahead_ast src" { & $uv run python -m q6.lint.lookahead_ast src }
-Invoke-Step 4 "uv run pytest tests/unit tests/property" { Invoke-RssGuard @("uv", "run", "pytest", "tests/unit", "tests/property") }
+Invoke-Step 4 "uv run pytest tests/unit tests/property tests/sim" { Invoke-RssGuard @("uv", "run", "pytest", "tests/unit", "tests/property", "tests/sim") }
 # 每个测试文件单独一个进程、单独受 RSS 上限约束（同进程累加会超 512MB，见 verify.sh 注释）
 Invoke-Step 5 "uv run pytest tests/lookahead (one process per file)" {
     foreach ($f in (Get-ChildItem -Path tests\lookahead -Filter "test_*.py" | Sort-Object Name)) {
