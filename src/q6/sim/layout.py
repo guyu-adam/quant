@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 LOG_MAX_BYTES = 20 * 1024 * 1024
@@ -122,3 +123,30 @@ def setup_logging(name: str, s: Path):
         log.setLevel(logging.INFO)
         log.propagate = False
     return log
+
+
+class SingleInstance:
+    """独占锁（supervisor 单实例 / 每个 run 一个 worker）；拿不到 = 已有进程持有；进程死掉时系统自动释放。"""
+
+    def __init__(self, path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.f = open(path, "a+b")  # noqa: SIM115 - 锁文件在进程生命周期内一直打开
+        try:
+            if sys.platform == "win32":
+                import msvcrt
+
+                self.f.seek(0)
+                msvcrt.locking(self.f.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self.f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.ok = True
+        except OSError:
+            self.ok = False
+            self.f.close()
+
+    def release(self) -> None:
+        if self.ok:
+            self.f.close()
+            self.ok = False

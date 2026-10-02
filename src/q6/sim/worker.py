@@ -13,7 +13,9 @@
    supervisor 立即重启（不计失败、不退避）——进程重开是归还碎片内存最可靠的办法。
    硬上限是 Job Object（limits_win）。
 
-退出码：0 完成；75 软内存重启；其它 = 失败（supervisor 记录并按指数退避重启）。
+退出码：0 完成；75 软内存重启；76 撞上 Job Object 硬限（分配失败 MemoryError）；
+77 同一 run 已有 worker 在跑（每个 run 一把独占锁，防止两个进程写同一个库）；
+其它 = 失败。76 / 77 与其它失败一样由 supervisor 记录并按指数退避重启。
 """
 
 from __future__ import annotations
@@ -38,7 +40,7 @@ from q6.sim import checkpoint as ckpt
 from q6.sim import layout
 from q6.strategy.base import Strategy
 
-EXIT_DONE, EXIT_SOFT_MEMORY = 0, 75
+EXIT_DONE, EXIT_SOFT_MEMORY, EXIT_HARD_MEMORY, EXIT_LOCKED = 0, 75, 76, 77
 
 # 模拟盘可用的策略（与 Mac 回测是同一批类）。LGBM 排序策略需要按 walk-forward 窗口逐段训练模型，
 # 不是"一个策略对象跑全程"的形态，P3 不接入（PROGRESS 记录）。
@@ -136,6 +138,16 @@ def run_worker(spec: dict, saves: Path, *, feed=None, strategy: Strategy | None 
     stop_after_days 仅测试用：处理完这么多天后不写检查点直接返回（等同被杀）。"""
     run_id = spec["run_id"]
     layout.ensure(saves)
+    lock = layout.SingleInstance(layout.runs_dir(saves) / f"{run_id}.lock")
+    if not lock.ok:
+        return EXIT_LOCKED
+    try:
+        return _run(spec, saves, run_id, feed, strategy, stop_after_days, clock, sleep)
+    finally:
+        lock.release()
+
+
+def _run(spec, saves, run_id, feed, strategy, stop_after_days, clock, sleep) -> int:
     log = layout.setup_logging(f"worker-{run_id}", saves)
     hb_path = layout.hb_dir(saves) / f"{run_id}.json"
     conn = ckpt.connect(layout.run_db(saves, run_id))
@@ -226,6 +238,8 @@ def main(argv=None) -> int:
     spec = json.loads(Path(raw[1:]).read_text(encoding="utf-8") if raw.startswith("@") else raw)
     try:
         return run_worker(spec, Path(a.saves))
+    except MemoryError:
+        os._exit(EXIT_HARD_MEMORY)  # 此时再记日志可能还要分配内存；退出码本身就是记录
     except Exception:
         log = layout.setup_logging(f"worker-{spec.get('run_id', 'unknown')}", Path(a.saves))
         log.exception("worker crashed")
