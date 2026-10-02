@@ -718,7 +718,7 @@ PEAK_RSS 462.1 MiB (limit 512)
    macOS 上 RSS 会翻倍（csmf 808MB）。Windows 不涉及（Arrow 用 system 池）。
 3. **ML 结果见第 3 节的全部保留意见**；ML 没做成本敏感性和 Deflated Sharpe（登记簿里 ML 只有 1 次试验，DSR 等 P3 有多次试验后一起算）。
 4. **登记簿第一条 `git_dirty=true`**：运行期间我在改 PROGRESS.md（只有文档），代码与 `deaad24` 一致。如实保留，没有删了重跑。
-5. `ts_corr` 的修复改变了常数窗口上的输出（±inf → NaN）。截面多因子的默认 6 个因子不含 `ts_corr`（一致性套件和截断测试照常通过）；Alpha101 子集里用到它的 10 个因子数值会变，ML 的 75 个特征里含这些因子——本次 walk-forward 用的是修复后的版本（修复前合成数据上实测会出 inf，`feature_matrix` 遇 inf 直接报错，不会静默）。
+5. `ts_corr` 的修复改变了常数窗口上的输出（±inf → NaN）。截面多因子的默认 6 个因子不含 `ts_corr`（一致性套件和截断测试照常通过）；Alpha101 子集里用到它的 8 个因子数值会变，ML 的 75 个特征里含这些因子——本次 walk-forward 用的是修复后的版本（修复前合成数据上实测会出 inf，`feature_matrix` 遇 inf 直接报错，不会静默）。
 6. P2-03 规则表、退市回收率默认 1.0（实测乐观 0.58–0.87pp/年）、没有行业 / 市值 / 财务数据等，见前文。
 
 ### 6. 状态
