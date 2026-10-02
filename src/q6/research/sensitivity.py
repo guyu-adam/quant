@@ -111,14 +111,24 @@ def _run_group(payload):
     return rows
 
 
-def run_grid(variants, snapshot_root, snapshot_id, start, end, workers=2, feed_factory=None) -> pd.DataFrame:
+def run_grid(
+    variants, snapshot_root, snapshot_id, start, end, workers=2, feed_factory=None, batch_size=8
+) -> pd.DataFrame:
     if workers < 1 or workers > 3:
         raise ValueError("workers must be between 1 and 3")
+    if batch_size < 1:
+        raise ValueError("batch_size must be at least 1")
     groups: dict[tuple[str, ...], list[tuple[int, Variant]]] = {}
     for i, variant in enumerate(variants):
         fields = tuple(sorted(variant.strategy_factory().spec.fields))
         groups.setdefault(fields, []).append((i, variant))
-    payloads = list(groups.values())
+    # Keep field groups together, but cap the number of variants loaded in each
+    # worker. The order inside each group is the original variant order.
+    payloads = [
+        group[offset : offset + batch_size]
+        for group in groups.values()
+        for offset in range(0, len(group), batch_size)
+    ]
     if workers == 1:
         outputs = [
             _run_group(([v for _, v in entries], snapshot_root, snapshot_id, start, end, feed_factory))

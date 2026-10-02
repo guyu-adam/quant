@@ -91,9 +91,10 @@ def variants(cfgs):
     return [Variant(str(i), partial(Hold), cfg) for i, cfg in enumerate(cfgs)]
 
 
-def run(cfgs, workers=1):
+def run(cfgs, workers=1, batch_size=8):
     return run_grid(
-        variants(cfgs), "unused", "unused", DAYS[0], DAYS[-1], workers=workers, feed_factory=fake_feed_factory
+        variants(cfgs), "unused", "unused", DAYS[0], DAYS[-1], workers=workers,
+        feed_factory=fake_feed_factory, batch_size=batch_size
     )
 
 
@@ -118,6 +119,15 @@ def test_workers_one_and_two_preserve_variant_order_and_values():
     pd.testing.assert_frame_equal(
         one.drop(columns="peak_rss_mb"), two.drop(columns="peak_rss_mb"), check_exact=True
     )
+
+
+def test_batch_sizes_preserve_variant_order_and_values():
+    cfgs = [EngineConfig(match=MatchConfig(cost_multiplier=x)) for x in (1, 2, 5, 3, 1)]
+    small, large = run(cfgs, workers=1, batch_size=1), run(cfgs, workers=1, batch_size=99)
+    pd.testing.assert_frame_equal(
+        small.drop(columns="peak_rss_mb"), large.drop(columns="peak_rss_mb"), check_exact=True
+    )
+    assert small.label.tolist() == [str(i) for i in range(len(cfgs))]
 
 
 def test_default_variant_matches_direct_vector_engine():
