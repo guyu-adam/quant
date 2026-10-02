@@ -1,0 +1,16 @@
+[sim]
+snapshot_root = "D:/quant6/repo/data/snapshots"
+snapshot_id = "6252e931a86bda15"
+max_workers = 2
+seconds_per_day = 0.2
+checkpoint_every = 10
+web = true
+web_host = "127.0.0.1"
+web_port = 8790
+loop = false
+
+[[jobs]]
+name = "lowvol-smoke"
+strategy = "lowvol"
+start = "2015-01-05"
+end = "2015-12-31"
