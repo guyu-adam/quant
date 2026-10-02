@@ -1,5 +1,6 @@
 [sim]
 snapshot_root = "D:/quant6/repo/data/snapshots"
+snapshot_id = "6252e931a86bda15"
 max_workers = 2
 seconds_per_day = 0.2
 checkpoint_every = 10

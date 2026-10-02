@@ -22,14 +22,9 @@ function Save-TaskSnapshot([string]$Path) {
     Get-TaskNames | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
-function Test-IsAdministrator {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
+# 老板的账户本身是管理员组成员，OpenSSH 会话拿到的是提权令牌，所以这里不拒绝管理员会话；
+# 要保证的是任务本身以非提权方式运行：RunLevel=Limited（UAC 过滤后的普通令牌）、LogonType=Interactive（不存密码）。
 try {
-    if (Test-IsAdministrator) { throw 'Administrator execution is refused; use a standard user session.' }
     $pythonw = Join-Path $Repo '.venv\Scripts\pythonw.exe'
     if (-not (Test-Path -LiteralPath $pythonw -PathType Leaf)) { throw "Missing pythonw: $pythonw" }
     if (-not (Test-Path -LiteralPath $Config -PathType Leaf)) { throw "Config file not found: $Config" }
@@ -89,8 +84,13 @@ try {
         exit 1
     }
     Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath | Select-Object TaskName, State
-    (Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath).Principal |
-        Select-Object UserId, LogonType, RunLevel
+    $p = (Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath).Principal
+    $p | Select-Object UserId, LogonType, RunLevel
+    if ([string]$p.LogonType -ne 'Interactive' -or [string]$p.RunLevel -ne 'Limited') {
+        Write-Output 'FAIL: task must be LogonType=Interactive (no stored password) and RunLevel=Limited.'
+        exit 1
+    }
+    Write-Output 'INSTALL: OK'
 } catch {
     Write-Error $_
     exit 1

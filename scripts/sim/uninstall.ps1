@@ -27,15 +27,17 @@ try {
         Unregister-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath -Confirm:$false
     }
 
-    $homePrefix = [IO.Path]::GetFullPath($InstallHome).TrimEnd('\') + '\'
+    # venv 的 python(w).exe 是转发器，真解释器在 uv 的 Python 目录下，所以按命令行（q6.sim + 本 Home 路径）匹配；
+    # 转发器和真解释器的命令行相同，两者都会被结束。
+    $homeFull = [IO.Path]::GetFullPath($InstallHome).TrimEnd('\')
     $residual = @(Get-CimInstance Win32_Process | Where-Object {
-        $_.Name -in @('python.exe', 'pythonw.exe') -and $_.ExecutablePath -and
+        $_.Name -in @('python.exe', 'pythonw.exe') -and $_.CommandLine -and
         $_.CommandLine -like '*q6.sim*' -and
-        [IO.Path]::GetFullPath($_.ExecutablePath).StartsWith($homePrefix, [StringComparison]::OrdinalIgnoreCase)
+        $_.CommandLine.IndexOf($homeFull, [StringComparison]::OrdinalIgnoreCase) -ge 0
     })
     foreach ($process in $residual) {
         Write-Output "Stopping PID $($process.ProcessId): $($process.CommandLine)"
-        Stop-Process -Id $process.ProcessId -Force
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
     }
 
     if ($PurgeSaves) {
