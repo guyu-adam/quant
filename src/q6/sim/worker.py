@@ -130,10 +130,23 @@ class Pacer:
         return slept
 
 
-def run_worker(spec: dict, saves: Path, *, feed=None, strategy: Strategy | None = None,
+class Min5:
+    """5 分钟执行模式的数据提供者（engine.EngineRun 的 intraday 参数）：读 data/min5 下的月度 parquet。"""
+
+    def __init__(self, root: str | Path) -> None:
+        self.root = Path(root)
+
+    def __call__(self, day: pd.Timestamp, symbols: list[str]) -> dict:
+        from q6.data.min5 import load_min5
+
+        return load_min5(self.root, str(day.date()), symbols)
+
+
+def run_worker(spec: dict, saves: Path, *, feed=None, strategy: Strategy | None = None, intraday=None,
                stop_after_days: int | None = None, clock=time.monotonic, sleep=time.sleep) -> int:
     """spec 必填：run_id, strategy, start, end；snapshot_root / snapshot_id（feed 未注入时）。
-    可选：params, engine（EngineConfig 覆盖项）, seconds_per_day(0), checkpoint_every(20),
+    可选：params, engine（EngineConfig 覆盖项）, min5_root（给了就用 5 分钟切片执行）,
+    seconds_per_day(0), checkpoint_every(20),
     checkpoint_secs(30), soft_rss_mb(450)。
     stop_after_days 仅测试用：处理完这么多天后不写检查点直接返回（等同被杀）。"""
     run_id = spec["run_id"]
@@ -142,12 +155,12 @@ def run_worker(spec: dict, saves: Path, *, feed=None, strategy: Strategy | None 
     if not lock.ok:
         return EXIT_LOCKED
     try:
-        return _run(spec, saves, run_id, feed, strategy, stop_after_days, clock, sleep)
+        return _run(spec, saves, run_id, feed, strategy, intraday, stop_after_days, clock, sleep)
     finally:
         lock.release()
 
 
-def _run(spec, saves, run_id, feed, strategy, stop_after_days, clock, sleep) -> int:
+def _run(spec, saves, run_id, feed, strategy, intraday, stop_after_days, clock, sleep) -> int:
     log = layout.setup_logging(f"worker-{run_id}", saves)
     hb_path = layout.hb_dir(saves) / f"{run_id}.json"
     conn = ckpt.connect(layout.run_db(saves, run_id))
@@ -160,7 +173,9 @@ def _run(spec, saves, run_id, feed, strategy, stop_after_days, clock, sleep) -> 
     if feed is None:
         feed = SnapshotFeed(spec["snapshot_root"], spec["snapshot_id"], extra_fields=strategy.spec.fields)
     engine = EventEngine(engine_config(spec.get("engine")))
-    run = EngineRun(engine, strategy, feed, spec["start"], spec["end"])
+    if intraday is None and spec.get("min5_root"):
+        intraday = Min5(spec["min5_root"])
+    run = EngineRun(engine, strategy, feed, spec["start"], spec["end"], intraday=intraday)
     state = ckpt.load(conn)
     if state is not None:
         run.load_state_dict(state)

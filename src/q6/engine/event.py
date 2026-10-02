@@ -39,6 +39,7 @@ from q6.risk.monitor import RiskConfig, RiskMonitor
 from q6.strategy.base import BarContext, Strategy
 
 CLOSE = time(15, 0)
+OPEN_CALL = time(9, 15)  # 5 分钟模式下账户的"开盘前"时刻（早于第一根 5 分钟 bar）
 _ROW_FIELDS = ("open", "high", "low", "close", "preclose", "volume", "amount",
                "tradestatus", "is_st", "is_new", "adj_factor", "bad")
 
@@ -93,6 +94,12 @@ def _bar(rows: dict[str, np.ndarray], j: int, sym: str, ts: datetime) -> Bar:
                tradable=True, is_st=bool(rows["is_st"][j] == 1))
 
 
+def _hhmm(t) -> str:
+    """5 分钟 bar 的时间：baostock 原样是 YYYYMMDDHHMMSSsss，整理后是 HHMMSS；统一取 HHMM。"""
+    t = str(t)
+    return t[8:12] if len(t) >= 14 else t[:4]
+
+
 def risk_targets(monitor: RiskMonitor | None, ts: datetime, equity: float,
                  positions: dict[str, float], target: dict[str, float] | None) -> dict[str, float] | None:
     """第 3 步盯市之后、第 4 步下单之前的风控（架构 §4.4 的固定顺序：撮合 → 盯市 → 风控 → 策略 → 下单）。
@@ -133,17 +140,28 @@ class EngineRun:
       没有随机数：撮合的排队模型是确定性期望值口径，引擎不持有 RNG。
     - `drain()`：取走并清空已产生的日记录 / 成交 / 退市记录（模拟盘每个检查点落库一次，内存不随长度增长）。
 
+    5 分钟执行（P3，可选）：传入 intraday(day, symbols) -> {symbol: {time, open, high, low, close,
+    volume, amount}} 时，第 2 步不再用日线 bar 一次撮合，而是把每张订单按当天 5 分钟 bar 的时间顺序
+    切片撮合：每根 bar 一次 match_order（参考价 = 该 bar 的 VWAP，参与率上限按该 bar 的成交量，
+    涨跌停价仍按日线前收算，一字封板的 bar 买 / 卖不进），剩余数量顺延到下一根 bar，收盘还没成交完的
+    部分作废（与日线模式一样次日重新决策）。每根 bar 的成交是一笔独立 Fill（算法拆单的每个子单各自
+    计佣金，含 5 元最低佣金）。5 分钟数据把集合竞价并在第一根 bar 里，所以没有单独的开盘竞价阶段。
+    某只标的当天没有 5 分钟数据时退回日线撮合，计数在 reasons["MIN5_MISSING"]。
+    不传 intraday 时与原日线路径完全相同。
+
     续跑：先 load_state_dict 再 days()。数据段按"检查点所在年份"重新加载，并且用**当初加载该段时的代码集合**
     （不是续跑时的持仓），所以面板的行列与不中断运行完全相同；已处理的日子按日期跳过。
     """
 
-    def __init__(self, engine: EventEngine, strategy: Strategy, feed: SnapshotFeed, start, end) -> None:
+    def __init__(self, engine: EventEngine, strategy: Strategy, feed: SnapshotFeed, start, end,
+                 intraday: Callable[[pd.Timestamp, list[str]], dict] | None = None) -> None:
         missing = set(strategy.spec.fields) - set(feed.fields)
         if missing:
             raise ValueError(f"策略需要的字段 {sorted(missing)} 没有加载（SnapshotFeed(extra_fields=...)）")
         self.cfg = engine.cfg
         self.strategy = strategy
         self.feed = feed
+        self.intraday = intraday
         self.start, self.end = pd.Timestamp(start), pd.Timestamp(end)
         self.broker: BrokerSim | None = None
         self.pending: list[_Pending] = []
@@ -215,13 +233,88 @@ class EngineRun:
             # 放掉本段面板的全部引用，再让数据源加载下一段；否则两段面板同时在内存里
             seg = p = None  # noqa: F841
 
+    def _count(self, why: Reason) -> None:
+        if why is not Reason.FILLED:
+            self.reasons[why.name] = self.reasons.get(why.name, 0) + 1
+
+    def _match_daily(self, rows, sym_idx, ts, pending=None) -> list[Fill]:
+        """日线撮合：先卖后买，同方向按代码；每单在当天日线 bar 上一次撮合。返回已记账的成交。"""
+        broker, out = self.broker, []
+        pending = self.pending if pending is None else pending
+        for pend in sorted(pending, key=lambda x: (x.order.side is Side.BUY, x.order.symbol)):
+            o = pend.order
+            j = sym_idx.get(o.symbol)
+            if j is None:  # 本段面板里没有这只（已退市且无行）：等同停牌
+                self._count(Reason.SUSPENDED)
+                continue
+            f, why = match_order(
+                o, _bar(rows, j, o.symbol, ts), sellable=broker.sellable(o.symbol),
+                cash_available=broker.state.cash, no_limit_day=bool(rows["is_new"][j] == 1),
+                adv=pend.adv, sigma=pend.sigma, cfg=self.cfg.match,
+            )
+            self._count(why)
+            if f is not None:
+                broker.apply_fill(f)
+                out.append(f)
+        return out
+
+    def _match_intraday(self, rows, sym_idx, ts, day: pd.Timestamp) -> list[Fill]:
+        """5 分钟撮合：按 bar 时间推进，每个时刻先卖后买（卖出回笼的现金同一时刻起可用），每张订单在
+        该时刻的 bar 上撮合剩余数量。没有 5 分钟数据的订单最后按日线撮合（时间戳 15:00）。"""
+        broker, cfg = self.broker, self.cfg.match
+        mins = self.intraday(day, sorted({x.order.symbol for x in self.pending})) if self.pending else {}
+        live, fallback = [], []
+        for pend in sorted(self.pending, key=lambda x: (x.order.side is Side.BUY, x.order.symbol)):
+            j = sym_idx.get(pend.order.symbol)
+            if j is not None and pend.order.symbol in mins and _bar(rows, j, pend.order.symbol, ts).tradable:
+                live.append(pend)
+            else:
+                if j is not None and _bar(rows, j, pend.order.symbol, ts).tradable:
+                    self.reasons["MIN5_MISSING"] = self.reasons.get("MIN5_MISSING", 0) + 1
+                fallback.append(pend)
+        state = {id(p): dict(left=p.order.qty, fills=0, why=Reason.NO_VOLUME) for p in live}
+        index = {id(p): {_hhmm(t): k for k, t in enumerate(mins[p.order.symbol]["time"])} for p in live}
+        out: list[Fill] = []
+        for hhmm in sorted({t for p in live for t in index[id(p)]}):
+            bts = datetime.combine(day.date(), time(int(hhmm[:2]), int(hhmm[2:4])))
+            for pend in live:
+                o, st = pend.order, state[id(pend)]
+                k = index[id(pend)].get(hhmm)
+                if k is None or st["left"] <= 0:
+                    continue
+                m, j = mins[o.symbol], sym_idx[o.symbol]
+                bar = Bar(bts, o.symbol, float(m["open"][k]), float(m["high"][k]), float(m["low"][k]),
+                          float(m["close"][k]), int(m["volume"][k]), float(m["amount"][k]),
+                          float(rows["preclose"][j]), tradable=True, is_st=bool(rows["is_st"][j] == 1))
+                if bar.volume <= 0:
+                    continue
+                child = Order(f"{o.id}.{hhmm}", o.symbol, o.side, st["left"], o.created_at, o.order_type,
+                              o.limit_price, o.strategy_id)
+                f, st["why"] = match_order(child, bar, sellable=broker.sellable(o.symbol),
+                                           cash_available=broker.state.cash,
+                                           no_limit_day=bool(rows["is_new"][j] == 1),
+                                           adv=pend.adv, sigma=pend.sigma, cfg=cfg)
+                if f is None:
+                    continue
+                broker.apply_fill(f)
+                out.append(f)
+                st["fills"] += 1
+                st["left"] -= f.qty
+                if o.side is Side.SELL and broker.sellable(o.symbol) == 0:
+                    st["left"] = 0  # 零股一次卖完后剩余数量无意义
+        for pend in live:
+            st = state[id(pend)]
+            self._count(Reason.FILLED if st["left"] <= 0 else Reason.PARTIAL if st["fills"] else st["why"])
+        return out + self._match_daily(rows, sym_idx, ts, fallback)
+
     def _step(self, p, seg, sym_idx, i: int, day: pd.Timestamp) -> None:
         cfg, strategy = self.cfg, self.strategy
         spec = strategy.spec
         ts = _ts(day)
         self.clock.advance(ts)
+        sod = datetime.combine(day.date(), OPEN_CALL) if self.intraday is not None else ts
         if self.broker is None:
-            self.broker = BrokerSim(cfg.initial_cash, ts)
+            self.broker = BrokerSim(cfg.initial_cash, sod)
         broker, reasons, absent, last_adj = self.broker, self.reasons, self.absent, self.last_adj
         rows = {f: p.row(f, i) for f in _ROW_FIELDS}
 
@@ -232,28 +325,16 @@ class EngineRun:
             a = rows["adj_factor"][j] if j is not None else math.nan
             if math.isfinite(a) and s in last_adj and a != last_adj[s]:
                 ratios[s] = a / last_adj[s]
-        broker.start_of_day(ts, ratios)
+        broker.start_of_day(sod, ratios)
 
         # 2. 撮合：先卖后买，同方向按代码
         buy_value = sell_value = cost_si = 0.0
         n_fees_before = broker.state.fees_paid
-        for pend in sorted(self.pending, key=lambda x: (x.order.side is Side.BUY, x.order.symbol)):
-            o = pend.order
-            j = sym_idx.get(o.symbol)
-            if j is None:  # 本段面板里没有这只（已退市且无行）：等同停牌
-                reasons[Reason.SUSPENDED.name] = reasons.get(Reason.SUSPENDED.name, 0) + 1
-                continue
-            bar = _bar(rows, j, o.symbol, ts)
-            f, why = match_order(
-                o, bar, sellable=broker.sellable(o.symbol), cash_available=broker.state.cash,
-                no_limit_day=bool(rows["is_new"][j] == 1),
-                adv=pend.adv, sigma=pend.sigma, cfg=cfg.match,
-            )
-            if why is not Reason.FILLED:
-                reasons[why.name] = reasons.get(why.name, 0) + 1
-            if f is None:
-                continue
-            broker.apply_fill(f)
+        if self.intraday is None:
+            matched = self._match_daily(rows, sym_idx, ts)
+        else:
+            matched = self._match_intraday(rows, sym_idx, ts, day)
+        for f in matched:
             self.fills.append(f)
             strategy.on_fill(f)
             cost_si += f.slippage_cost + f.impact_cost

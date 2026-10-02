@@ -173,3 +173,17 @@ def test_job_object_hard_limit(tmp_path):
     else:
         assert confined == "False" and info == "None"
         assert limits_win.job_limits() is None
+
+
+def test_transient_heartbeat_read_failure_does_not_kill(tmp_path, monkeypatch):
+    """Win 24h 实跑发现：读心跳赶上 worker 原子替换时读失败，被当成"从没心跳"，过了宽限期就误杀。"""
+    sup = _sup(tmp_path, {"s": dict(mode="stall")}, heartbeat_timeout=60.0, startup_grace=0.5)
+    _run_until(sup, lambda: any(s.hb for s in sup.slots.values()))
+    real = layout.read_json
+    monkeypatch.setattr(layout, "read_json",
+                        lambda p, default=None: default if p.name.endswith("-g1.json") else real(p, default))
+    time.sleep(0.8)  # 超过启动宽限期
+    for _ in range(5):
+        sup.tick()
+    assert [s.state for s in sup.slots.values()] == ["running"] and not sup.restarts_log
+    sup.shutdown()

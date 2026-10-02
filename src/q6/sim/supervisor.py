@@ -49,6 +49,11 @@ def _iso(t: float | None = None) -> str:
     return datetime.fromtimestamp(time.time() if t is None else t).isoformat(timespec="seconds")
 
 
+def _abs(config: Path, p: str) -> str:
+    q = Path(p)
+    return str(q if q.is_absolute() else (config.parent / q).resolve())
+
+
 def load_config(path: Path) -> tuple[dict, list[dict]]:
     """TOML：[sim] 全局设置；[[jobs]] 每项一个任务模板，`grid` 表里的列表做笛卡尔积展开成多个任务。"""
     raw = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -68,7 +73,8 @@ def load_config(path: Path) -> tuple[dict, list[dict]]:
             jobs.append(dict(
                 name=f"{t['name']}{suffix}", strategy=t["strategy"], params=params,
                 start=t["start"], end=t["end"], engine=t.get("engine", {}),
-                seconds_per_day=t.get("seconds_per_day", sim["seconds_per_day"])))
+                seconds_per_day=t.get("seconds_per_day", sim["seconds_per_day"]),
+                min5_root=_abs(path, t["min5_root"]) if t.get("min5_root") else None))
     names = [j["name"] for j in jobs]
     if len(set(names)) != len(names):
         raise ValueError("任务名重复")
@@ -119,6 +125,8 @@ class Supervisor:
                         snapshot_id=self.sim["snapshot_id"], seconds_per_day=j["seconds_per_day"],
                         checkpoint_every=self.sim["checkpoint_every"],
                         checkpoint_secs=self.sim["checkpoint_secs"], soft_rss_mb=self.sim["soft_rss_mb"])
+            if j.get("min5_root"):
+                spec["min5_root"] = j["min5_root"]
             slot = Slot(rid, spec)
             if self._db_status(rid) == layout.STATUS_DONE:
                 slot.state = "done"
@@ -240,7 +248,9 @@ class Supervisor:
                 self._on_exit(slot, code, now)
                 continue
             pids = self._measure(slot) | {slot.proc.pid}
-            slot.hb = layout.read_json(layout.hb_dir(self.saves) / f"{slot.run_id}.json", {}) or {}
+            hb = layout.read_json(layout.hb_dir(self.saves) / f"{slot.run_id}.json", None)
+            if hb is not None:  # Win 上读到正在原子替换的文件会失败：沿用上次的
+                slot.hb = hb
             fresh = slot.hb.get("pid") in pids
             age = now - slot.hb["ts"] if fresh else now - slot.started_at
             if age > (timeout if fresh else grace):

@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from q6.data import lockbox
 from q6.sim.supervisor import load_config
 
 DAILY = ("equity", "cash", "market_value", "n_pos", "buy_value", "sell_value", "fees", "cost_slip_imp")
@@ -102,6 +103,7 @@ def cmd_compare(a) -> int:
             wf = pd.read_sql_query(f"SELECT {', '.join(FILLS)} FROM fills ORDER BY seq", c)
             resumes = c.execute("SELECT COUNT(*) FROM events WHERE kind='resume'").fetchone()[0]
         md = pd.read_parquet(rd)[["date", *DAILY]]
+        lockbox.check_dates(md["date"], "sim_align ref")
         mf = pd.read_parquet(ref / f"{name}.fills.parquet")[list(FILLS)]
         wd, md = wd.set_index("date").astype(float), md.set_index("date").astype(float)
         same_days = list(wd.index) == list(md.index)

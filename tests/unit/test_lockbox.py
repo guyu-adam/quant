@@ -232,6 +232,8 @@ ALLOWED_READERS = {
     "src/q6/ml/lgbm_ranker.py":
         "ML 特征缓存（自己写的派生数据）；load_feature_cache 读后经 lockbox.check_dates"
         "（test_lgbm_ranker::test_cache_read_beyond_research_horizon_raises）",
+    "scripts/sim_align.py":
+        "P3 对齐比对读自己写的 Mac 参照结果（EventEngine.run 的输出）；读后经 lockbox.check_dates",
 }
 READERS = {"read_parquet", "read_table", "ParquetFile", "ParquetDataset", "dataset", "read_feather"}
 
