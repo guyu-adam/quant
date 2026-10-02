@@ -351,7 +351,7 @@ class VectorEngine:
 
     def _orders(self, a: _Acct, p: Panel, i: int, row: np.ndarray, close: np.ndarray,
                 status: np.ndarray, sym_idx: dict[str, int]) -> None:
-        """口径同 EventEngine._orders：目标市值 = 权重 × 当日收盘权益，差额 / 收盘价 = 股数。"""
+        """口径同 event._orders：目标市值 = 权重 × 当日收盘权益，差额 / 收盘价 = 股数。"""
         cfg = a.cfg
         equity = a.cash + sum(q[0] * q[3] for q in a.pos.values())
         cand = set(np.flatnonzero(row != 0).tolist()) | {sym_idx[s] for s in a.pos if s in sym_idx}

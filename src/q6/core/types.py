@@ -190,6 +190,10 @@ class AccountSnapshot:
                 raise ValueError(f"positions 键 {k} 与 Position.symbol {p.symbol} 不一致")
         object.__setattr__(self, "positions", MappingProxyType(dict(self.positions)))
 
+    def __reduce__(self):  # MappingProxyType 不能 pickle；按字段重建（保持持仓的插入顺序），供 P3 检查点使用
+        return (AccountSnapshot,
+                (self.ts, self.cash, dict(self.positions), self.realized_pnl, self.fees_paid))
+
     @property
     def market_value(self) -> float:
         return sum(p.market_value for p in self.positions.values())
