@@ -79,3 +79,14 @@ def test_invalid_scalar_inputs_raise(qty, adv, sigma, kwargs) -> None:
 def test_invalid_array_inputs_raise(qty, adv, sigma) -> None:
     with pytest.raises(ValueError):
         cost_rate_array(np.array(qty), np.array(adv), np.array(sigma))
+
+
+def test_rejects_unrepresentable_cost_rate_and_invalid_execution_cost() -> None:
+    with pytest.raises(ValueError, match="成本率计算结果必须是有限数"):
+        cost_rate(1e308, 1, 1e308)
+    with pytest.raises(ValueError, match="成本率必须是有限非负数"):
+        exec_price(100, Side.BUY, ImpactResult(float("nan"), 0))
+    with pytest.raises(ValueError, match="ref_price 必须是有限正数"):
+        exec_price(0, Side.BUY, ImpactResult(0, 0))
+    with pytest.raises(ValueError, match="side 必须是 Side"):
+        exec_price(100, "buy", ImpactResult(0, 0))
